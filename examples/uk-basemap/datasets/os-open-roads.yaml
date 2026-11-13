@@ -1,0 +1,13 @@
+# OS Open Roads: road links and nodes from the GeoPackage. configops publishes each with its own style.
+# `geodata discover os OpenRoads` lists its layers; motorway_junction is left out here.
+apiVersion: geodata/v1alpha1
+kind: Dataset
+metadata:
+  name: os-open-roads
+spec:
+  source: os
+  product: OpenRoads
+  update: weekly
+  tables:
+    road_link: {}
+    road_node: {}

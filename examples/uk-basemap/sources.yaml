@@ -1,0 +1,15 @@
+apiVersion: geodata/v1alpha1
+kind: Source
+metadata:
+  name: os
+spec:
+  type: os-downloads
+  credentials: { secret: os-api }   # key: apiKey (OS Data Hub key; optional, OpenData needs none)
+---
+apiVersion: geodata/v1alpha1
+kind: Source
+metadata:
+  name: data-gov-uk
+spec:
+  type: ckan
+  url: https://data.gov.uk          # any CKAN portal; public data needs no key

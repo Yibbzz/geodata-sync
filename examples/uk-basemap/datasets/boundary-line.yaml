@@ -1,0 +1,10 @@
+# OS Boundary-Line: every table in the product is loaded (no `tables`); one is published.
+# `geodata discover os BoundaryLine` lists its 18 layers.
+apiVersion: geodata/v1alpha1
+kind: Dataset
+metadata:
+  name: boundary-line
+spec:
+  source: os
+  product: BoundaryLine
+  update: monthly

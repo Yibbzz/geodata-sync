@@ -1,0 +1,49 @@
+# geodata in Kubernetes: a nightly CronJob that loads what's new (docs/kubernetes.md explains it).
+# The first container runs `geodata sync` and lists what it loaded; the second runs
+# `configops refresh` on that list, so GeoServer's layers on the new data get their new bounds
+# and lose their old cached tiles. Leave the second out if nothing publishes the tables.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: geodata-sync
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid  # never two loads at once
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0  # a failed dataset is retried by the next run
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext: { runAsNonRoot: true, runAsUser: 65534 }
+          initContainers:
+            - name: sync
+              image: registry.example.org/my-data-geodata:1  # docs/kubernetes/Dockerfile: geodata with your data project
+              # a failed dataset doesn't stop the refresh of those that loaded; the Job fails afterwards
+              command: ["sh", "-c", "geodata sync -C /project --loaded /work/loaded.txt || touch /work/failed"]
+              resources:
+                requests: { cpu: 250m, memory: 512Mi }
+                limits: { memory: 2Gi }
+              volumeMounts:
+                - { name: work, mountPath: /work }
+                - { name: tmp, mountPath: /tmp }  # downloads are unpacked here
+                - { name: database, mountPath: /etc/geodata/secrets/database, readOnly: true }
+          containers:
+            - name: refresh
+              image: registry.example.org/my-project-configops:1  # configops with your GeoServer project
+              command: ["sh", "-c", "configops refresh -C /project --from /work/loaded.txt; rc=$?; [ -e /work/failed ] && exit 1; exit $rc"]
+              resources:
+                requests: { cpu: 50m, memory: 128Mi }
+                limits: { memory: 256Mi }
+              volumeMounts:
+                - { name: work, mountPath: /work }
+                - { name: geoserver-admin, mountPath: /etc/configops/secrets/geoserver-admin, readOnly: true }
+                - { name: database, mountPath: /etc/configops/secrets/database, readOnly: true }
+          volumes:
+            - { name: work, emptyDir: {} }
+            - { name: tmp, emptyDir: {} }
+            # one volume per Secret the projects name (credentials: { secret: ... })
+            - { name: database, secret: { secretName: database } }  # keys host, port, database, username, password
+            - { name: geoserver-admin, secret: { secretName: geoserver-admin } }  # keys username, password

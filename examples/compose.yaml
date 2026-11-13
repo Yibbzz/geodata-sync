@@ -1,0 +1,10 @@
+# A PostGIS database to try the examples on (README, quick start).
+#   docker compose -f examples/compose.yaml up -d --wait
+#   docker compose -f examples/compose.yaml down -v
+name: geodata-examples
+services:
+  db:
+    image: postgis/postgis:18-3.7
+    environment: {POSTGRES_DB: postgres, POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres}
+    ports: ["5433:5432"]
+    healthcheck: {test: ["CMD", "pg_isready", "-U", "postgres"], interval: 3s, retries: 40}

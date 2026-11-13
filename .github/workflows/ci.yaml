@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:18-3.7
+        env:
+          POSTGRES_DB: gis
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - name: Install GDAL
+        run: tests/ci/install-gdal.sh
+      - name: Install Python dependencies
+        run: pip install -e '.[dev]'
+      - name: Run tests, a real-PostGIS sync among them
+        env:
+          TEST_DB_HOST: localhost
+          TEST_DB_PORT: '5432'
+          TEST_DB_NAME: gis
+          TEST_DB_USER: postgres
+          TEST_DB_PASSWORD: postgres
+        run: pytest
+      - name: Validate the example projects
+        run: for p in examples/*/; do geodata validate "$p" || exit 1; done
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Shellcheck
+        run: shellcheck tests/ci/*.sh
+      - name: Check the Kubernetes example against Kubernetes's schemas
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          ./kubeconform -strict -summary -kubernetes-version 1.37.0 docs/kubernetes/geodata.yaml
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build the image
+        run: docker build -t geodata:ci .
+      - name: Smoke test
+        run: |
+          docker run --rm geodata:ci --version
+          docker run --rm --entrypoint ogr2ogr geodata:ci --version
+          docker run --rm -v "$PWD/examples/uk-basemap:/project:ro" geodata:ci validate /project

@@ -1,0 +1,6 @@
+# Only what the package needs goes into the image
+*
+!pyproject.toml
+!README.md
+!geodata_sync/
+**/__pycache__

@@ -1,0 +1,12 @@
+# The database this project loads into, and defaults for its datasets. configops's
+# examples/uk-basemap publishes the tables as GeoServer layers.
+apiVersion: geodata/v1alpha1
+kind: Project
+metadata:
+  name: uk-basemap
+spec:
+  database:
+    connection: { secret: database }             # keys: host, port, database, username, password
+    schemas: { live: data_layers, staging: staging, backup: backup }
+  crs: EPSG:27700                                # for files that don't say
+  backups: 3                                     # previous loads kept per table

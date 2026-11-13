@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Yibbzz/geodata-sync/geodata_sync/schema/v1alpha1.json",
+  "title": "geodata resource (v1alpha1)",
+  "description": "One resource of a geodata project: docs/spec.md",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "const": "geodata/v1alpha1"
+    },
+    "kind": {
+      "enum": [
+        "Project",
+        "Source",
+        "Dataset"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/resourceName"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "spec": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "Project"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "spec": {
+            "$ref": "#/$defs/project"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "Source"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "spec": {
+            "$ref": "#/$defs/source"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "Dataset"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "spec": {
+            "$ref": "#/$defs/dataset"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "resourceName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$",
+      "description": "lowercase letters, digits and dashes, starting and ending with a letter or digit"
+    },
+    "tableName": {
+      "type": "string",
+      "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+      "description": "lowercase letters, digits and _, not starting with a digit, at most 63 characters"
+    },
+    "secretRef": {
+      "type": "object",
+      "required": [
+        "secret"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "secret": {
+          "$ref": "#/$defs/resourceName"
+        }
+      }
+    },
+    "crs": {
+      "type": "string",
+      "pattern": "^EPSG:[0-9]+$"
+    },
+    "schedule": {
+      "type": "string",
+      "anyOf": [
+        {
+          "enum": [
+            "daily",
+            "weekly",
+            "monthly",
+            "manual"
+          ]
+        },
+        {
+          "pattern": "^\\S+( \\S+){4}$",
+          "description": "A five-field cron expression"
+        }
+      ],
+      "description": "daily, weekly, monthly, manual, or a five-field cron expression such as '0 3 * * 1'"
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "database"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "database": {
+          "type": "object",
+          "required": [
+            "connection"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "connection": {
+              "$ref": "#/$defs/secretRef"
+            },
+            "schemas": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "live": {
+                  "$ref": "#/$defs/tableName"
+                },
+                "staging": {
+                  "$ref": "#/$defs/tableName"
+                },
+                "backup": {
+                  "$ref": "#/$defs/tableName"
+                }
+              }
+            }
+          }
+        },
+        "crs": {
+          "$ref": "#/$defs/crs"
+        },
+        "backups": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "os-downloads",
+            "url",
+            "ckan",
+            "ogc-api-features",
+            "wfs"
+          ]
+        },
+        "credentials": {
+          "$ref": "#/$defs/secretRef"
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https?://",
+          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint"
+        }
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "required": [
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/resourceName"
+        },
+        "product": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resource": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Which download of a CKAN package to load: a resource ID or name"
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "update": {
+          "$ref": "#/$defs/schedule"
+        },
+        "tables": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/tableName"
+              },
+              "crs": {
+                "$ref": "#/$defs/crs"
+              }
+            }
+          }
+        },
+        "validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dropInvalidGeometries": {
+              "type": "boolean"
+            },
+            "minRows": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "raster": {
+          "type": "object",
+          "required": [
+            "path"
+          ],
+          "additionalProperties": false,
+          "description": "make the download one Cloud-Optimised GeoTIFF on the data volume, instead of tables",
+          "properties": {
+            "path": {
+              "type": "string",
+              "pattern": "^(?!/)(?!.*\\.\\.)\\S+\\.tif$",
+              "description": "a .tif path under the data volume, like rasters/terrain50.tif"
+            },
+            "crs": {
+              "$ref": "#/$defs/crs"
+            },
+            "nodata": {
+              "type": "number",
+              "description": "the value for where no raster covers, and the rasters' own gaps"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+# Rasters: OS Terrain 50 (heights of Great Britain on a 50 m grid) made into one
+# Cloud-Optimised GeoTIFF in GeoServer's /data folder. geodata writes the file, so run it
+# where that folder is mounted (GEODATA_DATA_DIR points elsewhere); configops's
+# examples/terrain publishes it with a colour ramp.
+apiVersion: geodata/v1alpha1
+kind: Project
+metadata:
+  name: terrain
+spec:
+  database:                                    # the ingest log lives here
+    connection: { secret: database }
+  crs: EPSG:27700
+  backups: 1
+---
+apiVersion: geodata/v1alpha1
+kind: Source
+metadata:
+  name: os
+spec:
+  type: os-downloads
+---
+# The ASCII Grid download: about 2,800 tiles in zips inside a zip, mosaicked into one file
+apiVersion: geodata/v1alpha1
+kind: Dataset
+metadata:
+  name: terrain-50
+spec:
+  source: os
+  product: Terrain50
+  update: monthly
+  raster:
+    path: rasters/os-terrain-50.tif
+    crs: EPSG:27700                            # the grids carry no CRS of their own
+    nodata: -9999                              # where no tile covers: the sea around the coast
