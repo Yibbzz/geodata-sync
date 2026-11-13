@@ -164,6 +164,10 @@ A `secret` field names a secret; the files never hold its value. Where `geodata`
 | On a laptop or in CI | Environment variable `GEODATA_OS_API_APIKEY`, or a git-ignored `secrets.yaml` next to the project (`os-api: { apiKey: ... }`) |
 | In Kubernetes | Files `$GEODATA_SECRETS_DIR/os-api/apiKey`: the Secret mounted as a folder |
 
+## Checking files as you type
+
+`geodata validate` checks every resource against the JSON Schema in [`geodata_sync/schema/v1alpha1.json`](../geodata_sync/schema/v1alpha1.json), then the rules across files. Editors that understand JSON Schema check the files as you type: in VS Code, with the YAML extension, the repo's `.vscode/settings.json` points the examples at it; for your own project, add the same `yaml.schemas` entry.
+
 ## Ownership
 
 Only tables a Dataset declares, in the Project's schemas, are created, replaced or backed up; nothing else in the database is touched.
