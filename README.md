@@ -114,6 +114,6 @@ Set the version in `pyproject.toml` and `geodata_sync/__init__.py`, merge, then 
 
 ## Licence and data attribution
 
-BSD 2-Clause (see `LICENSE.txt`). This code started in [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-configops), where it was the `sync` and `discover` commands.
+MIT (see `LICENSE`). This code started in [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-configops), where it was the `sync` and `discover` commands.
 
 Data you load keeps its own licence. OS OpenData is released under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) and needs the attribution "Contains OS data © Crown copyright and database right &lt;year&gt;" wherever it's shown.
