@@ -21,9 +21,14 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from ..secrets import redact
+
 
 class SourceError(Exception):
-    """The provider couldn't answer; the message is for the user."""
+    """The provider couldn't answer; the message is for the user, so credentials in it are masked."""
+
+    def __init__(self, message: str = ""):
+        super().__init__(redact(str(message)))
 
 
 class NotFound(SourceError):

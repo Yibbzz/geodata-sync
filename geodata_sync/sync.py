@@ -218,8 +218,9 @@ def run(root: Path, names: list[str], force: bool = False, loaded_file: Path | N
             except (SourceError, ingest.LoadError, remote.RemoteError, discover.DiscoverError, psycopg2.Error, OSError) as e:
                 failures += 1
                 conn.rollback()
-                print(f"{name}: failed: {e}", file=sys.stderr, flush=True)
-                ingest.record(conn, name, "unknown", None, "failed", datetime.now(), error=str(e))
+                error = secrets.redact(str(e))  # a failed download's error quotes its signed address
+                print(f"{name}: failed: {error}", file=sys.stderr, flush=True)
+                ingest.record(conn, name, "unknown", None, "failed", datetime.now(), error=error)
     finally:
         conn.close()
         if loaded_file is not None:

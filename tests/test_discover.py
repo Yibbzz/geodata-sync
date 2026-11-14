@@ -659,3 +659,19 @@ def test_secret_from_a_mounted_kubernetes_secret(tmp_path, monkeypatch):
     assert secrets.lookup("geoserver-pgconfig-secret", "host") is None
     monkeypatch.setenv("GEODATA_GEOSERVER_PGCONFIG_SECRET_PASSWORD", "override")
     assert secrets.lookup("geoserver-pgconfig-secret", "password") == "override"
+
+
+def test_an_api_key_is_masked_in_errors():
+    """requests quotes the full address in its errors, `?key=...` included; they reach the logs and the ingest log."""
+    client = OSDownloads(api_key="SECRETKEY123", url="http://127.0.0.1:1/products")
+    with pytest.raises(SourceError) as e:
+        client.products()
+    assert "SECRETKEY123" not in str(e.value) and "key=***" in str(e.value)
+
+
+def test_redact_masks_credentials_and_nothing_else():
+    signed = "404 Client Error for url: https://store.example/f.zip?X-Amz-Credential=AKIA1&X-Amz-Signature=abc123&part=2"
+    assert secrets.redact(signed) == "404 Client Error for url: https://store.example/f.zip?X-Amz-Credential=***&X-Amz-Signature=***&part=2"
+    assert secrets.redact("https://x.example/a?access_token=t0k&sig=s%2B1") == "https://x.example/a?access_token=***&sig=***"
+    plain = "can't reach https://x.example/wfs?service=WFS&request=GetCapabilities: timed out"
+    assert secrets.redact(plain) == plain

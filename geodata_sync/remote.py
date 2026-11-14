@@ -25,6 +25,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from .secrets import redact
+
 # Data files GDAL can list layers from, by extension. Shapefile parts other
 # than .shp, and docs, are left out.
 DATA_EXTENSIONS = (".gpkg", ".shp", ".gml", ".tab", ".geojson", ".json", ".csv", ".kml", ".fgb")
@@ -46,7 +48,10 @@ GDAL_ENV = {"CPL_VSIL_CURL_CHUNK_SIZE": "2097152", "GDAL_DISABLE_READDIR_ON_OPEN
 
 
 class RemoteError(Exception):
-    """A download couldn't be read; the message is for the user."""
+    """A download couldn't be read; the message is for the user, so credentials in it are masked."""
+
+    def __init__(self, message: str = ""):
+        super().__init__(redact(str(message)))
 
 
 class NoRanges(RemoteError):
