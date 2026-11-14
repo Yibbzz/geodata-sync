@@ -163,12 +163,16 @@ def sync_raster(conn, dataset: Resource, src, product: Product, last, started: d
     """Download a raster product and make it the dataset's COG on the data volume."""
     options, chosen = dataset.spec["raster"], product.chosen
     path = options["path"]
+    in_place = not force and last and last.tables == [path] and raster.live_path(path).exists()
+    # the source's version says it's unchanged: no need to download gigabytes to find the same file
+    if in_place and product.version and last.version == product.version:
+        ingest.record(conn, dataset.name, last.version, chosen.format, "skipped", started, sha=last.sha256, tables=[path])
+        return f"{dataset.name}: up to date ({discover.version(last.version)})", []
     with tempfile.TemporaryDirectory(prefix="geodata-sync-") as tmp:
         work = Path(tmp)
         download = work / (Path(chosen.file_name).name if chosen.file_name else "download")
         sha = ingest.download(src.client.download_url(chosen), download, chosen.md5)
-        if not force and last and last.tables == [path] and raster.live_path(path).exists() and \
-                ((product.version and last.version == product.version) or last.sha256 == sha):
+        if in_place and last.sha256 == sha:
             ingest.record(conn, dataset.name, last.version, chosen.format, "skipped", started, sha=sha, tables=[path])
             return f"{dataset.name}: up to date ({discover.version(last.version)})", []
         t0 = time.monotonic()
