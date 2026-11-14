@@ -14,15 +14,22 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 0  # a failed dataset is retried by the next run
+      # A load that hangs is stopped: with concurrencyPolicy Forbid it would otherwise keep every
+      # later night's run from starting. Longer than your longest load.
+      activeDeadlineSeconds: 21600
       template:
         spec:
           restartPolicy: Never
-          securityContext: { runAsNonRoot: true, runAsUser: 65534 }
+          # neither container talks to the Kubernetes API; without this its token sits in a file both can read
+          automountServiceAccountToken: false
+          securityContext: { runAsNonRoot: true, runAsUser: 65534, seccompProfile: { type: RuntimeDefault } }
           initContainers:
             - name: sync
               image: registry.example.org/my-data-geodata:1  # docs/kubernetes/Dockerfile: geodata with your data project
               # a failed dataset doesn't stop the refresh of those that loaded; the Job fails afterwards
               command: ["sh", "-c", "geodata sync -C /project --loaded /work/loaded.txt || touch /work/failed"]
+              # it reads files from the internet: no extra privileges, and nothing writable but /work and /tmp
+              securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
               resources:
                 requests: { cpu: 250m, memory: 512Mi }
                 limits: { memory: 2Gi }
@@ -34,6 +41,7 @@ spec:
             - name: refresh
               image: registry.example.org/my-project-configops:1  # configops with your GeoServer project
               command: ["sh", "-c", "configops refresh -C /project --from /work/loaded.txt; rc=$?; [ -e /work/failed ] && exit 1; exit $rc"]
+              securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
               resources:
                 requests: { cpu: 50m, memory: 128Mi }
                 limits: { memory: 256Mi }
@@ -43,7 +51,8 @@ spec:
                 - { name: database, mountPath: /etc/configops/secrets/database, readOnly: true }
           volumes:
             - { name: work, emptyDir: {} }
-            - { name: tmp, emptyDir: {} }
+            # a download and what it unpacks to; without a limit a huge one fills the node's disk for every pod on it
+            - { name: tmp, emptyDir: { sizeLimit: 50Gi } }
             # one volume per Secret the projects name (credentials: { secret: ... })
             - { name: database, secret: { secretName: database } }  # keys host, port, database, username, password
             - { name: geoserver-admin, secret: { secretName: geoserver-admin } }  # keys username, password
