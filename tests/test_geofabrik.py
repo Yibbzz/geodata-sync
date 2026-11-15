@@ -94,7 +94,7 @@ spec:
     server.built += 86_400  # and the day after, with new data
     for path in server.files:
         server.files[path] += b" " if path.endswith(".pbf") else b""
-    server.files["/europe/test-latest-free.shp.zip"] = shapefile_pack(tmp_path / "again") if region == "test" else \
+    server.files["/europe/test-latest-free.shp.zip"] = shapefile_pack(tmp_path / "again", cafes=3) if region == "test" else \
         server.files["/europe/test-latest-free.shp.zip"]
     assert sync(tmp_path / "p") == 0
     assert "sites: loaded" in capsys.readouterr().out and len(server.downloads()) == 3

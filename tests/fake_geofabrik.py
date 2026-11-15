@@ -22,10 +22,10 @@ OSM = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
-def shapefile_pack(folder: Path) -> bytes:
-    """A zip as Geofabrik's free shapefiles: gis_osm_roads_free_1 and gis_osm_pois_free_1."""
+def shapefile_pack(folder: Path, cafes: int = 2) -> bytes:
+    """A zip as Geofabrik's free shapefiles: gis_osm_roads_free_1 and gis_osm_pois_free_1 (`cafes` of them)."""
     layers = {"gis_osm_roads_free_1": [("High Street", "LineString", [[-0.13, 51.51], [-0.14, 51.52]])],
-              "gis_osm_pois_free_1": [("Cafe A", "Point", [-0.12, 51.50]), ("Cafe B", "Point", [-0.11, 51.49])]}
+              "gis_osm_pois_free_1": [(f"Cafe {i}", "Point", [-0.12 + i / 100, 51.50]) for i in range(cafes)]}
     folder.mkdir(parents=True, exist_ok=True)
     out = folder / "pack.zip"
     with zipfile.ZipFile(out, "w") as z:
