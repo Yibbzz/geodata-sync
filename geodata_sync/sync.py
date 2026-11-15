@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 import psycopg2
+import requests
 
 from . import discover, ingest, raster, remote, schedule, secrets
 from .loader import Project, Resource, default_table, load
@@ -179,6 +180,37 @@ def sync_raster(conn, dataset: Resource, src, product: Product, last, started: d
             f"{raster.data_root()}/{path} ({pixels:,} pixels)"), [path]
 
 
+# Failures whose message is written for the user; anything else is shown with its type, as it is likely a bug
+EXPECTED = (SourceError, ingest.LoadError, remote.RemoteError, discover.DiscoverError, psycopg2.Error, OSError,
+            requests.RequestException)
+
+
+def failure(e: BaseException) -> str:
+    """What to say about a failed dataset, with credentials in quoted addresses masked."""
+    text = str(e).strip() or "no details"
+    if not isinstance(e, EXPECTED):
+        text = f"unexpected {type(e).__name__}: {text} (please report this)"
+    return secrets.redact(text)  # a failed download's error quotes its signed address
+
+
+def usable(conn, db: ingest.Database):
+    """The connection, rolled back for the next dataset; a new one if it was lost; None if none can be had."""
+    if not conn.closed:
+        try:
+            conn.rollback()
+            return conn
+        except psycopg2.Error:
+            pass
+    try:
+        conn.close()
+    except psycopg2.Error:
+        pass
+    try:
+        return db.connect()
+    except psycopg2.Error:
+        return None
+
+
 def run(root: Path, names: list[str], force: bool = False, loaded_file: Path | None = None) -> int:
     """Check the due (or named) Datasets and load what's new. With `loaded_file`, write there what was
     loaded, one per line: `schema.table` for a table, the path under the data folder for a raster
@@ -204,25 +236,37 @@ def run(root: Path, names: list[str], force: bool = False, loaded_file: Path | N
     failures, everything_loaded = 0, []
     try:
         ingest.bootstrap(conn)
-        for name in names or sorted(datasets):
+        pending = list(names or sorted(datasets))
+        while pending:
+            name = pending.pop(0)
             dataset = datasets[name]
-            update = dataset.spec.get("update")
-            if not names and not force and not schedule.due(update, ingest.last_check(conn, name)):
-                print(f"{name}: not due ({update or 'manual'})")
-                continue
             try:
+                update = dataset.spec.get("update")
+                if not names and not force and not schedule.due(update, ingest.last_check(conn, name)):
+                    print(f"{name}: not due ({update or 'manual'})")
+                    continue
                 message, loaded = sync_dataset(conn, db, root, project, dataset, force)
                 print(message, flush=True)
                 raster_path = (dataset.spec.get("raster") or {}).get("path")
                 everything_loaded += [t if t == raster_path else f"{db.live}.{t}" for t in loaded]
-            except (SourceError, ingest.LoadError, remote.RemoteError, discover.DiscoverError, psycopg2.Error, OSError) as e:
+            except Exception as e:  # noqa: BLE001 - one dataset's failure, whatever it is, mustn't stop the others
                 failures += 1
-                conn.rollback()
-                error = secrets.redact(str(e))  # a failed download's error quotes its signed address
-                print(f"{name}: failed: {error}", file=sys.stderr, flush=True)
-                ingest.record(conn, name, "unknown", None, "failed", datetime.now(), error=error)
+                print(f"{name}: failed: {failure(e)}", file=sys.stderr, flush=True)
+                conn = usable(conn, db)
+                if conn is None:
+                    # the database is gone: nothing more can be loaded, or recorded
+                    for rest in pending:
+                        failures += 1
+                        print(f"{rest}: not checked: lost the connection to the database", file=sys.stderr, flush=True)
+                    break
+                try:
+                    ingest.record(conn, name, "unknown", None, "failed", datetime.now(), error=failure(e))
+                except psycopg2.Error as again:
+                    conn.rollback()
+                    print(f"{name}: and the failure couldn't be recorded: {failure(again)}", file=sys.stderr, flush=True)
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
         if loaded_file is not None:
             Path(loaded_file).write_text("".join(f"{x}\n" for x in everything_loaded), encoding="utf-8")
     return 1 if failures else 0
