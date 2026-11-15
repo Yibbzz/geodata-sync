@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="GeoServer DataOps">
   <title>GeoServer DataOps</title>
-  <!-- three map layers, kept up to date from their sources -->
+  <!-- three map layers, filled with the world's data -->
   <g stroke-linejoin="round" stroke-width="5">
     <path d="M80 86 L138 112 L80 138 L22 112 Z" fill="#17647a" stroke="#17647a"/>
     <path d="M80 59 L138 85 L80 111 L22 85 Z" fill="#1b8a8f" stroke="#1b8a8f"/>
@@ -8,13 +8,10 @@
   </g>
   <circle cx="121" cy="116" r="27" fill="#ffffff"/>
   <circle cx="121" cy="116" r="22" fill="#f4a261"/>
-  <!-- two arrows chasing each other round: sync -->
-  <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M110.5 111.5 A11.5 11.5 0 0 1 130.5 109"/>
-    <path d="M131.5 120.5 A11.5 11.5 0 0 1 111.5 123"/>
-  </g>
-  <g fill="#ffffff">
-    <path d="M125.5 108.5 L134.5 104 L133.5 114 Z"/>
-    <path d="M116.5 123.5 L107.5 128 L108.5 118 Z"/>
+  <!-- a globe: its outline, the equator and a meridian -->
+  <g fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round">
+    <circle cx="121" cy="116" r="13"/>
+    <ellipse cx="121" cy="116" rx="6" ry="13"/>
+    <path d="M108 116 H134"/>
   </g>
 </svg>
