@@ -10,7 +10,7 @@
 
 `geodata` keeps the open datasets you name in PostGIS, each at its newest version:
 
-- **Find** data in the Ordnance Survey's downloads, CKAN portals, WFS and OGC API Features services, or behind plain links. `discover` lists what a source offers and the layers inside a download.
+- **Find** data in the places it is published, worldwide: ArcGIS services, CKAN, Socrata and OpenDataSoft portals, INSPIRE and GeoNetwork catalogues (CSW, OGC API Records), WFS and OGC API Features, STAC imagery catalogues, Overture Maps, OpenStreetMap (Geofabrik), New Zealand's Koordinates services, the Ordnance Survey, or plain links. `discover` lists what a source offers and the layers inside a download.
 - **Load** it safely: staged, checked (invalid geometries, row counts), then swapped in for the old tables in one transaction, which are kept as backups. A raster download becomes one Cloud-Optimised GeoTIFF.
 - **Keep it up to date.** Each dataset has a schedule; `sync`, run nightly, checks those that are due and loads only a new version.
 
@@ -108,7 +108,8 @@ configops refresh -C my-geoserver --from loaded.txt
 ## What to know
 
 - Big layers over WFS or OGC API Features don't load reliably: use a file download when there is one ([docs/sources-notes.md](docs/sources-notes.md)).
-- A WFS or OGC API Features source has no version to compare, so it is loaded in full each time it is due.
+- A WFS or OGC API Features source has no version to compare, so it is loaded in full each time it is due; so is an ArcGIS layer that doesn't report its last edit.
+- Overture reads GeoParquet with pyarrow: `pip install 'geodata-sync[overture]'` (the image has it). Koordinates needs an API key.
 - A materialized view on a live table stops its load: drop it before and create it again after.
 
 ## Documentation
