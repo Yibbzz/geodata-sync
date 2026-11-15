@@ -18,6 +18,7 @@ from .loader import Problem, Project, Resource, default_table
 
 SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs"}
 SOURCES_WITH_ADDRESSES = {"ckan", "ogc-api-features", "wfs"}  # need the Source's spec.url
+SOURCES_WITH_KEYS = {"os-downloads", "ckan"}  # send the credentials secret's apiKey; the others send nothing
 
 
 def schema() -> dict:
@@ -124,6 +125,10 @@ def check_references(project: Project) -> list[Problem]:
             problems.append(Problem(s.file, s.line(("spec",)), f"spec.url: a {kind} source needs its address, e.g. https://data.gov.uk", s.label))
         if kind not in SOURCES_WITH_ADDRESSES and s.spec.get("url"):
             problems.append(Problem(s.file, s.line(("spec", "url")), f"spec.url: not used by a {kind} source", s.label))
+        if kind not in SOURCES_WITH_KEYS and s.spec.get("credentials"):
+            problems.append(Problem(s.file, s.line(("spec", "credentials")),
+                                    f"spec.credentials: a {kind} source sends no credentials, so a service that needs them "
+                                    "will refuse it; only os-downloads and ckan sources use an API key", s.label, "warning"))
 
     for d in project.of_kind("Dataset"):
         source = sources.get(d.spec.get("source"))
