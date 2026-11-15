@@ -119,6 +119,9 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
         ingest.record(conn, dataset.name, product.version, chosen.format, "skipped", started, tables=last.tables)
         return f"{dataset.name}: up to date ({discover.version(product.version)})", []
 
+    # End the transaction the lookups above began: a download can take hours, and a transaction left
+    # open that long is ended by a server with idle_in_transaction_session_timeout, and holds back vacuum.
+    conn.rollback()
     validation = spec.get("validation") or {}
     project_crs = project.spec.get("crs") or DEFAULT_CRS
     if raster_spec:
@@ -137,6 +140,7 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
                 version = product.version or f"sha256:{sha[:16]}"
                 ingest.record(conn, dataset.name, version, chosen.format, "skipped", started, sha=sha, tables=last.tables)
                 return f"{dataset.name}: up to date (same file as last time)", []
+            conn.rollback()  # and the one that check began, while the file is unzipped and read
             found = ingest.file_layers(path, work)
         layers = plan_layers(dataset, found, project_crs)
         t0 = time.monotonic()
