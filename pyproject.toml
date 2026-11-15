@@ -29,5 +29,6 @@ testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
     "integration: needs a PostGIS database (TEST_DB_* env vars) and ogr2ogr",
+    "e2e: needs a GeoServer and its PostGIS (tests/e2e/up.sh, E2E_* env vars) and GDAL's tools",
 ]
 addopts = "-ra"

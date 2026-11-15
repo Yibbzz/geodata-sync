@@ -1,0 +1,84 @@
+# A GeoServer to read what geodata-sync loads, for the e2e tests (tests/test_e2e_geoserver.py).
+# Profile cloud: GeoServer Cloud's gateway, REST, WFS and WCS services on one pgconfig catalog, kept
+# in step through RabbitMQ, as its own Kubernetes deployments run them. Profile standard: the official
+# GeoServer image. Both read the shared PostGIS database and the data folder (./data at /data), as in
+# production. Started by tests/e2e/up.sh [standard|standard-2]; the same setup, slimmed down, as
+# GeoServer ConfigOps's e2e tests.
+name: geodata-e2e
+x-pgconfig: &pgconfig
+  PGCONFIG_HOST: db
+  PGCONFIG_PORT: "5432"
+  PGCONFIG_DATABASE: postgres
+  PGCONFIG_SCHEMA: pgconfig
+  PGCONFIG_USERNAME: postgres
+  PGCONFIG_PASSWORD: postgres
+  PGCONFIG_INITIALIZE: "true"
+x-cloud: &cloud
+  profiles: [cloud]
+  mem_limit: 768m  # the heap is half of it (MaxRAMPercentage); without a limit each service sizes it from the whole machine
+  restart: on-failure  # as Kubernetes restarts a pod
+  depends_on: {db: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
+  environment: &cloud-env
+    <<: *pgconfig
+    SPRING_PROFILES_ACTIVE: standalone,pgconfig
+    SPRING_CONFIG_ADDITIONAL_LOCATION: file:/etc/geoserver/jndi.yml
+    GEOSERVER_BASE_PATH: /geoserver-cloud
+    SPRING_RABBITMQ_HOST: rabbitmq
+    SPRING_RABBITMQ_PORT: "5672"
+    SPRING_RABBITMQ_USERNAME: user
+    SPRING_RABBITMQ_PASSWORD: guest
+    JAVA_OPTS: -XX:MaxRAMPercentage=50
+  volumes: ["./jndi.yml:/etc/geoserver/jndi.yml:ro", "./data:/data:ro"]
+  healthcheck:
+    test: ["CMD", "curl", "-fs", "http://localhost:8081/actuator/health/readiness"]
+    interval: 5s
+    retries: 60
+    start_period: 30s
+services:
+  db:
+    image: ${POSTGIS_IMAGE}
+    environment: {POSTGRES_DB: postgres, POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres}
+    ports: ["${E2E_DB_PORT:-55433}:5432"]
+    healthcheck: {test: ["CMD", "pg_isready", "-U", "postgres"], interval: 3s, retries: 40}
+  rabbitmq:
+    profiles: [cloud]
+    image: ${RABBITMQ_IMAGE}
+    environment: {RABBITMQ_DEFAULT_USER: user, RABBITMQ_DEFAULT_PASS: guest}
+    healthcheck: {test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"], interval: 5s, retries: 40}
+  rest:
+    <<: *cloud
+    image: geoservercloud/geoserver-cloud-rest:${GEOSERVER_TAG}
+  wfs:
+    <<: *cloud
+    image: geoservercloud/geoserver-cloud-wfs:${GEOSERVER_TAG}
+  wcs:
+    <<: *cloud
+    image: geoservercloud/geoserver-cloud-wcs:${GEOSERVER_TAG}
+  gateway:
+    <<: *cloud
+    image: geoservercloud/geoserver-cloud-gateway:${GEOSERVER_TAG}
+    depends_on: {rest: {condition: service_healthy}, wfs: {condition: service_healthy}, wcs: {condition: service_healthy}}
+    environment:
+      <<: *cloud-env
+      TARGETS_REST: http://rest:8080
+      TARGETS_WFS: http://wfs:8080
+      TARGETS_WCS: http://wcs:8080
+      TARGETS_WMS: http://wms:8080  # not started
+      TARGETS_GWC: http://gwc:8080
+      TARGETS_WEBUI: http://webui:8080
+      TARGETS_WPS: http://wps:8080
+    ports: ["${E2E_GATEWAY_PORT:-59090}:8080"]
+  geoserver:
+    profiles: [standard]
+    image: docker.osgeo.org/geoserver:${STANDARD_GEOSERVER_VERSION}
+    depends_on: {db: {condition: service_healthy}}
+    environment:
+      SKIP_DEMO_DATA: "true"  # start empty, as GeoServer Cloud does
+      EXTRA_JAVA_OPTS: -Xms256m -Xmx1g
+    volumes: ["./data:/data:ro"]
+    ports: ["${E2E_STANDARD_PORT:-59091}:8080"]
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "-u", "admin:geoserver", "http://localhost:8080/geoserver/rest/about/version.json"]
+      interval: 5s
+      retries: 120
+      start_period: 60s

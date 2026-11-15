@@ -10,3 +10,5 @@ secrets.yaml
 secrets.yml
 .env
 *.env
+# e2e tests: rasters geodata writes, GeoServer reads
+tests/e2e/data/
