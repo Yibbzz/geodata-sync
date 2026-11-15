@@ -17,10 +17,10 @@ from jsonschema.exceptions import best_match
 from .loader import Problem, Project, Resource, default_table
 
 SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis", "stac", "ogc-api-records", "csw",
-                         "socrata", "opendatasoft", "overture"}
-SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads", "overture"}
-SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture"}  # a mirror of Overture's bucket
-SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw"}  # products with several downloads to pick from  # need the Source's spec.url
+                         "socrata", "opendatasoft", "overture", "geofabrik"}
+SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads", "overture", "geofabrik"}
+SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture", "geofabrik"}  # a mirror
+SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw", "geofabrik"}  # products with several downloads to pick from  # need the Source's spec.url
 SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft"}  # send the credentials secret's apiKey; the others send nothing
 
 
@@ -159,7 +159,7 @@ def check_references(project: Project) -> list[Problem]:
             problems.append(Problem(d.file, d.line(("spec", "overture")), f"spec.overture: only used with an overture source, not {kind}", d.label))
         if kind not in SOURCES_WITH_RESOURCES and d.spec.get("resource"):
             problems.append(Problem(d.file, d.line(("spec", "resource")),
-                                    f"spec.resource: only used with a ckan, ogc-api-records or csw source, not {kind}", d.label))
+                                    f"spec.resource: only used with a {', '.join(sorted(SOURCES_WITH_RESOURCES))} source, not {kind}", d.label))
 
     return problems
 

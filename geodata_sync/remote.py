@@ -29,7 +29,7 @@ from .secrets import redact
 
 # Data files GDAL can list layers from, by extension. Shapefile parts other
 # than .shp, and docs, are left out.
-DATA_EXTENSIONS = (".gpkg", ".shp", ".gml", ".tab", ".geojson", ".json", ".csv", ".kml", ".fgb")
+DATA_EXTENSIONS = (".gpkg", ".shp", ".gml", ".tab", ".geojson", ".json", ".csv", ".kml", ".fgb", ".pbf")
 
 # Formats whose feature count means reading the whole file
 NO_COUNT_EXTENSIONS = (".gml", ".csv", ".geojson", ".json", ".kml")
@@ -39,7 +39,7 @@ NO_COUNT_EXTENSIONS = (".gml", ".csv", ".geojson", ".json", ".kml")
 # really an OGR VRT can name any local file, or a database, as its source, and what it reads
 # would be loaded into a table. Naming the drivers stops GDAL trying those.
 FILE_DRIVERS = ("GPKG", "ESRI Shapefile", "GML", "MapInfo File", "GeoJSON", "GeoJSONSeq", "ESRIJSON", "TopoJSON",
-                "CSV", "KML", "LIBKML", "FlatGeobuf", "OpenFileGDB")
+                "CSV", "KML", "LIBKML", "FlatGeobuf", "OpenFileGDB", "OSM")
 SERVICE_DRIVERS = {"WFS:": "WFS", "OAPIF:": "OAPIF", "ESRIJSON:": "ESRIJSON"}
 
 TIMEOUT = 60
