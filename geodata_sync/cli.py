@@ -95,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     d = commands.add_parser(
         "discover", help="list what a source offers, or the layers inside one product",
         description="List the products a source offers, or the downloads and layers of one product. "
-        "SOURCE is a Source in the project (e.g. os) or a source type: os-downloads, ckan, wfs, ogc-api-features, arcgis, stac, ogc-api-records, csw, socrata or opendatasoft (with --url), overture, geofabrik, "
+        "SOURCE is a Source in the project (e.g. os) or a source type: os-downloads, ckan, wfs, ogc-api-features, arcgis, stac, ogc-api-records, csw, socrata, opendatasoft or koordinates (with --url), overture, geofabrik, "
         "or url (the product is then a file's address).",
     )
     d.add_argument("source", help="a Source name from the project, or a source type")
