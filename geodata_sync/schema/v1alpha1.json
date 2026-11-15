@@ -198,7 +198,8 @@
             "ogc-api-records",
             "csw",
             "socrata",
-            "opendatasoft"
+            "opendatasoft",
+            "overture"
           ]
         },
         "credentials": {
@@ -263,6 +264,25 @@
             "minRows": {
               "type": "integer",
               "minimum": 0
+            }
+          }
+        },
+        "overture": {
+          "type": "object",
+          "required": [
+            "bbox"
+          ],
+          "additionalProperties": false,
+          "description": "the area of an Overture type to load",
+          "properties": {
+            "bbox": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 4,
+              "maxItems": 4,
+              "description": "the area, in degrees: [west, south, east, north]"
             }
           }
         },
