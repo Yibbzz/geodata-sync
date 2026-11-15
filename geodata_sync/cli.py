@@ -95,14 +95,14 @@ def main(argv: list[str] | None = None) -> int:
     d = commands.add_parser(
         "discover", help="list what a source offers, or the layers inside one product",
         description="List the products a source offers, or the downloads and layers of one product. "
-        "SOURCE is a Source in the project (e.g. os) or a source type: os-downloads, ckan, wfs, ogc-api-features, arcgis or stac (with --url), "
+        "SOURCE is a Source in the project (e.g. os) or a source type: os-downloads, ckan, wfs, ogc-api-features, arcgis, stac, ogc-api-records or csw (with --url), "
         "or url (the product is then a file's address).",
     )
     d.add_argument("source", help="a Source name from the project, or a source type")
     d.add_argument("product", nargs="?", help="a product ID (a CKAN package, a file's URL), to list its downloads and layers")
     d.add_argument("--search", metavar="WORDS", help="list only products matching these words")
     d.add_argument("--limit", type=int, metavar="N", help="list at most N products (CKAN default: 20)")
-    d.add_argument("--resource", metavar="ID", help="read this download of the product (a CKAN resource ID or name)")
+    d.add_argument("--resource", metavar="ID", help="read this download of the product (a CKAN resource, or a catalogue record's link: its ID, name or address)")
     d.add_argument("--url", help="the source's address, e.g. a CKAN portal (overrides the Source's spec.url)")
     d.add_argument("-C", "--dir", default=".", help="project directory, for Sources and secrets (default: current)")
     d.add_argument("--format", choices=["text", "json"], default="text")
