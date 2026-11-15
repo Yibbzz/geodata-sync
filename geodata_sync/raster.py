@@ -141,15 +141,20 @@ def install(new: Path, path: str, keep: int) -> None:
         for extra in old[:-keep] if keep else old:
             extra.unlink()
     os.replace(new, live)
+    # GDAL keeps a file's statistics and other details beside it (.aux.xml): those of the old file would be read as the new one's
+    live.with_name(live.name + ".aux.xml").unlink(missing_ok=True)
 
 
-def load(download: Path, work: Path, path: str, crs: str | None, fallback: str | None, keep: int, nodata: float | None = None) -> int:
-    """Make the download into the COG at `path` on the data volume; returns its size in pixels."""
+def load(downloads: Path | list[Path], work: Path, path: str, crs: str | None, fallback: str | None, keep: int,
+         nodata: float | None = None) -> int:
+    """Make the download (or downloads: a STAC selection's files) into the COG at `path` on the data volume;
+    returns its size in pixels."""
     if not data_root().is_dir():
         raise LoadError(f"no data volume at {data_root()}: mount GeoServer's data folder there (or set {DATA_ENV})")
     live = live_path(path)
     live.parent.mkdir(parents=True, exist_ok=True)
-    rasters = unpack(download, work)
+    downloads = downloads if isinstance(downloads, list) else [downloads]
+    rasters = [r for i, d in enumerate(downloads) for r in unpack(d, work / f"unpacked-{i}" if len(downloads) > 1 else work)]
     new = live.with_name(f".{live.name}.{datetime.now():%Y%m%d%H%M%S}.new")  # beside the live file: the rename stays on one volume
     try:
         built = build(rasters, work, new, crs, fallback, nodata)

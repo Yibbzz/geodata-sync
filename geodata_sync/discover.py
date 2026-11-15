@@ -225,6 +225,10 @@ def print_product(src: ResolvedSource, p: Product, layers: list[remote.Layer] | 
     groups: dict[str, list[Download]] = {}
     for d in p.downloads:
         groups.setdefault(f"{d.format} {d.subformat}".strip(), []).append(d)
+    if src.type == "stac":
+        for d in p.downloads:
+            print(f"  {d.id}: {d.format}" + (f", {d.file_name}" if d.file_name else "") + ("" if d.loadable else " (not a raster)"))
+        groups = {}
     for label, ds in groups.items():
         used = p.chosen in ds
         if len(ds) > 1 and all(d.area and not d.id for d in ds):
@@ -236,6 +240,10 @@ def print_product(src: ResolvedSource, p: Product, layers: list[remote.Layer] | 
         else:
             for d in ds:
                 print(download_line(d, d is p.chosen))
+    if src.type == "stac":
+        print(f"\nEach item of the collection has these files (assets). In a Dataset: `product: {p.id}`, "
+              "`stac: { bbox: [west, south, east, north], asset: <key> }` and `raster: { path: ... }`.")
+        return
     if not p.downloads:
         print("\nNo downloads listed.")
         return

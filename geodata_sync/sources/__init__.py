@@ -67,6 +67,7 @@ class Product:
     loads_as: str | None = None  # the format sync would load; None if none can be loaded
     chosen: Download | None = None  # the download sync would use (product() only)
     description: str = ""
+    parts: list[Download] = field(default_factory=list)  # several files mosaicked into one raster (a STAC selection)
 
     def to_dict(self) -> dict:
         return {
@@ -104,8 +105,9 @@ def source_types() -> dict[str, type]:
     from .arcgis import ArcGIS
     from .ckan import CKAN
     from .ogcapi import OGCAPIFeatures
+    from .stac import STAC
     from .os_downloads import OSDownloads
     from .url import URL
     from .wfs import WFS
 
-    return {"os-downloads": OSDownloads, "ckan": CKAN, "url": URL, "wfs": WFS, "ogc-api-features": OGCAPIFeatures, "arcgis": ArcGIS}
+    return {"os-downloads": OSDownloads, "ckan": CKAN, "url": URL, "wfs": WFS, "ogc-api-features": OGCAPIFeatures, "arcgis": ArcGIS, "stac": STAC}
