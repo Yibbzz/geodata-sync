@@ -112,8 +112,8 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
     spec = dataset.spec
     src = discover.resolve(spec["source"], root)
     raster_spec = spec.get("raster")
-    if src.type == "stac":  # a collection's items in an area: the Dataset's stac options pick them
-        product: Product = src.client.selection(spec["product"], spec["stac"])
+    if hasattr(src.client, "selection"):  # a STAC collection's or an Overture type's part: options under the type's name
+        product: Product = src.client.selection(spec["product"], spec.get(src.type) or {})
     elif raster_spec and src.type == "os-downloads":
         product: Product = src.client.product(spec["product"], spec.get("resource"), raster=True)
     else:
@@ -144,7 +144,10 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
             work = Path(tmp)
             # the download's own name: GDAL names a single file's layer after it (roads.geojson -> roads)
             path = work / (Path(chosen.file_name).name if chosen.file_name else "download")
-            sha = ingest.download(src.client.download_url(chosen), path, chosen.md5)
+            if hasattr(src.client, "fetch"):  # a source that writes its file itself (Overture's rows in an area)
+                sha = src.client.fetch(chosen, path)
+            else:
+                sha = ingest.download(src.client.download_url(chosen), path, chosen.md5)
             if not force and up_to_date(conn, db, dataset, last, None, sha):
                 version = product.version or f"sha256:{sha[:16]}"
                 ingest.record(conn, dataset.name, version, chosen.format, "skipped", started, sha=sha, tables=last.tables)

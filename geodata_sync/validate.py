@@ -17,8 +17,9 @@ from jsonschema.exceptions import best_match
 from .loader import Problem, Project, Resource, default_table
 
 SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis", "stac", "ogc-api-records", "csw",
-                         "socrata", "opendatasoft"}
-SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads"}
+                         "socrata", "opendatasoft", "overture"}
+SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads", "overture"}
+SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture"}  # a mirror of Overture's bucket
 SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw"}  # products with several downloads to pick from  # need the Source's spec.url
 SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft"}  # send the credentials secret's apiKey; the others send nothing
 
@@ -125,7 +126,7 @@ def check_references(project: Project) -> list[Problem]:
         kind = s.spec.get("type")
         if kind in SOURCES_WITH_ADDRESSES and not s.spec.get("url"):
             problems.append(Problem(s.file, s.line(("spec",)), f"spec.url: a {kind} source needs its address, e.g. https://data.gov.uk", s.label))
-        if kind not in SOURCES_WITH_ADDRESSES and s.spec.get("url"):
+        if kind not in SOURCES_WITH_ADDRESSES | SOURCES_WITH_OPTIONAL_ADDRESSES and s.spec.get("url"):
             problems.append(Problem(s.file, s.line(("spec", "url")), f"spec.url: not used by a {kind} source", s.label))
         if kind not in SOURCES_WITH_KEYS and s.spec.get("credentials"):
             problems.append(Problem(s.file, s.line(("spec", "credentials")),
@@ -151,6 +152,11 @@ def check_references(project: Project) -> list[Problem]:
                     problems.append(Problem(d.file, d.line(("spec",)), f"spec.{field}: required for a stac source: {what}", d.label))
         elif "stac" in d.spec:
             problems.append(Problem(d.file, d.line(("spec", "stac")), f"spec.stac: only used with a stac source, not {kind}", d.label))
+        if kind == "overture" and "overture" not in d.spec:
+            problems.append(Problem(d.file, d.line(("spec",)), "spec.overture: required for an overture source: "
+                                    "the area to load (bbox), as Overture covers the world", d.label))
+        elif kind != "overture" and "overture" in d.spec:
+            problems.append(Problem(d.file, d.line(("spec", "overture")), f"spec.overture: only used with an overture source, not {kind}", d.label))
         if kind not in SOURCES_WITH_RESOURCES and d.spec.get("resource"):
             problems.append(Problem(d.file, d.line(("spec", "resource")),
                                     f"spec.resource: only used with a ckan, ogc-api-records or csw source, not {kind}", d.label))

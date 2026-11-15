@@ -9,7 +9,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY geodata_sync/ geodata_sync/
-RUN pip install --no-cache-dir . && rm -rf /app
+RUN pip install --no-cache-dir '.[overture]' && rm -rf /app
 
 # The project files go here (docs/kubernetes/Dockerfile copies them in), the Secrets under /etc/geodata/secrets
 WORKDIR /project
