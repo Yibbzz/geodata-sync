@@ -14,6 +14,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 import uuid
 import zipfile
 from dataclasses import dataclass, field
@@ -173,16 +174,36 @@ def tables_exist(conn, schema: str, tables: list[str]) -> bool:
 # --- getting the data
 
 
+# A connection lost part way through a download is tried again, from where it stopped when the
+# server can send part of a file: one dropped connection shouldn't cost a night's load of a large product
+DOWNLOAD_ATTEMPTS = 4
+DOWNLOAD_PAUSE = 10  # seconds, times the attempt
+DROPPED = (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError)
+
+
 def download(url: str, dest: Path, md5: str | None = None, session: requests.Session | None = None) -> str:
     """Stream `url` to `dest`; check the MD5 when the source gives one; return the SHA256."""
-    sha, md5sum = hashlib.sha256(), hashlib.md5()
-    with (session or requests).get(url, stream=True, timeout=TIMEOUT) as r:
-        r.raise_for_status()
-        with open(dest, "wb") as f:
-            for chunk in r.iter_content(1 << 20):
-                f.write(chunk)
-                sha.update(chunk)
-                md5sum.update(chunk)
+    sha, md5sum, written = hashlib.sha256(), hashlib.md5(), 0
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        try:
+            headers = {"Range": f"bytes={written}-"} if written else {}
+            with (session or requests).get(url, stream=True, timeout=TIMEOUT, headers=headers) as r:
+                r.raise_for_status()
+                resumed = bool(written) and r.status_code == 206 and \
+                    r.headers.get("Content-Range", "").startswith(f"bytes {written}-")
+                if not resumed:  # from the start: the first try, or a server that sends whole files only
+                    sha, md5sum, written = hashlib.sha256(), hashlib.md5(), 0
+                with open(dest, "ab" if resumed else "wb") as f:
+                    for chunk in r.iter_content(1 << 20):
+                        f.write(chunk)
+                        sha.update(chunk)
+                        md5sum.update(chunk)
+                        written += len(chunk)
+            break
+        except DROPPED:
+            if attempt == DOWNLOAD_ATTEMPTS:
+                raise
+            time.sleep(DOWNLOAD_PAUSE * attempt)
     if md5 and md5sum.hexdigest().lower() != md5.lower():
         raise LoadError(f"the download's MD5 is {md5sum.hexdigest()}, not {md5} as the source says; try again later")
     return sha.hexdigest()
