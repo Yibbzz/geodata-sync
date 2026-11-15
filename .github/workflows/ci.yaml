@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:  # the versions workflow starts it on its pull request if GitHub doesn't
 
 permissions:
   contents: read
