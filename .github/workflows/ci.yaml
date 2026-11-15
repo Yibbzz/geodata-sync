@@ -43,9 +43,9 @@ jobs:
           TEST_DB_PASSWORD: postgres
         run: pytest
       - name: Validate the example projects
-        run: for p in examples/*/; do geodata validate "$p" || exit 1; done
+        run: for p in examples/*/; do dataops validate "$p" || exit 1; done
 
-  # What geodata loads, served by GeoServer Cloud: loaded, published, read back through WFS and WCS,
+  # What dataops loads, served by GeoServer Cloud: loaded, published, read back through WFS and WCS,
   # reloaded under the running GeoServer and read back again (tests/test_e2e_geoserver.py)
   e2e-cloud:
     runs-on: ubuntu-latest
@@ -70,7 +70,7 @@ jobs:
         run: pytest -m e2e -v
       - name: Logs on failure
         if: failure()
-        run: for s in rest wfs wcs gateway; do echo "== $s"; docker logs geodata-e2e-$s-1 2>&1 | grep -v accesslog | tail -100; done
+        run: for s in rest wfs wcs gateway; do echo "== $s"; docker logs dataops-e2e-$s-1 2>&1 | grep -v accesslog | tail -100; done
 
   # The same against standard GeoServer
   e2e-standard:
@@ -96,7 +96,7 @@ jobs:
         run: pytest -m e2e -v
       - name: Logs on failure
         if: failure()
-        run: docker logs geodata-e2e-geoserver-1 2>&1 | tail -200
+        run: docker logs dataops-e2e-geoserver-1 2>&1 | tail -200
 
   # The same against GeoServer 2.28, the older series still maintained
   e2e-standard-2:
@@ -122,7 +122,7 @@ jobs:
         run: pytest -m e2e -v
       - name: Logs on failure
         if: failure()
-        run: docker logs geodata-e2e-geoserver-1 2>&1 | tail -200
+        run: docker logs dataops-e2e-geoserver-1 2>&1 | tail -200
 
   lint:
     runs-on: ubuntu-latest
@@ -133,16 +133,16 @@ jobs:
       - name: Check the Kubernetes example against Kubernetes's schemas
         run: |
           curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
-          ./kubeconform -strict -summary -kubernetes-version 1.37.0 docs/kubernetes/geodata.yaml
+          ./kubeconform -strict -summary -kubernetes-version 1.37.0 docs/kubernetes/dataops.yaml
 
   image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - name: Build the image
-        run: docker build -t geodata:ci .
+        run: docker build -t dataops:ci .
       - name: Smoke test
         run: |
-          docker run --rm geodata:ci --version
-          docker run --rm --entrypoint ogr2ogr geodata:ci --version
-          docker run --rm -v "$PWD/examples/uk-basemap:/project:ro" geodata:ci validate /project
+          docker run --rm dataops:ci --version
+          docker run --rm --entrypoint ogr2ogr dataops:ci --version
+          docker run --rm -v "$PWD/examples/uk-basemap:/project:ro" dataops:ci validate /project

@@ -28,7 +28,7 @@ DATA_RELS = {"enclosure", "download", "data", "item", "alternate", "service", "r
 
 
 def link_download(href: str, fmt: str | None = None, title: str = "", ident: str = "") -> Download:
-    """A record's link as a download: a file geodata loads, a service, or neither."""
+    """A record's link as a download: a file dataops loads, a service, or neither."""
     protocol = (fmt or "").replace(":", " ").replace("-", " ")  # CSW's protocols: OGC:WFS, ESRI:REST
     label = classify(fmt, href, fmt, title)
     kind = service(protocol, href, title) or service(fmt, href, title)
@@ -52,7 +52,7 @@ def choose(downloads: list[Download], resource: str | None, product: str) -> Dow
         names = ", ".join(d.name or d.id or d.url for d in downloads)
         raise SourceError(f"{product} has no link '{resource}' (its links: {names})")
     if not picked[0].loadable:
-        raise SourceError(f"link '{resource}' is {picked[0].format}, not a file geodata can load")
+        raise SourceError(f"link '{resource}' is {picked[0].format}, not a file dataops can load")
     return picked[0]
 
 

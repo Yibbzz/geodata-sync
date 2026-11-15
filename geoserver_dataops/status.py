@@ -1,4 +1,4 @@
-"""`geodata status`: each dataset from the ingest log: what was loaded, when, the
+"""`dataops status`: each dataset from the ingest log: what was loaded, when, the
 last error, the next check. Nothing is changed."""
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ def run(root: Path, fmt: str = "text") -> int:
     files = load(root)
     errors = [p for p in validate(files) if p.severity == "error"]
     if errors:
-        raise SyncError(f"the files have {len(errors)} error(s); `geodata validate` lists them")
+        raise SyncError(f"the files have {len(errors)} error(s); `dataops validate` lists them")
     project = files.of_kind("Project")[0]
     db = sync.database(project, root)
     try:

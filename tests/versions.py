@@ -32,7 +32,7 @@ PINS = {"cloud": "GEOSERVER_TAG", "standard": "STANDARD_GEOSERVER_VERSION", "sta
 
 
 def get(url: str, accept: str = "application/json", method: str = "GET") -> bytes | None:
-    headers = {"User-Agent": "geodata-sync-versions", "Accept": accept}
+    headers = {"User-Agent": "geoserver-dataops-versions", "Accept": accept}
     if "api.github.com" in url and os.environ.get("GITHUB_TOKEN"):
         headers["Authorization"] = f"Bearer {os.environ['GITHUB_TOKEN']}"
     try:
@@ -97,7 +97,7 @@ def badges(v: dict[str, str]) -> str:
 def tested_line(v: dict[str, str]) -> str:
     return (f"<!-- tested-on -->Tested on **GeoServer Cloud {v['cloud']}**, **GeoServer {v['standard']}** and "
             f"**GeoServer {v['standard-2']}**, with **PostGIS {v['postgis']}**: on every pull request each one "
-            "publishes what `geodata sync` loaded and serves it back, before and after a reload, and a daily job "
+            "publishes what `dataops sync` loaded and serves it back, before and after a reload, and a daily job "
             "(`.github/workflows/versions.yaml`) tries each new release.<!-- /tested-on -->")
 
 

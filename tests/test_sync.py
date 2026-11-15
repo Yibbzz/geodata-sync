@@ -1,14 +1,14 @@
-"""`geodata sync` without a database: schedules, which layers load as which tables, and set-up errors."""
+"""`dataops sync` without a database: schedules, which layers load as which tables, and set-up errors."""
 
 import textwrap
 from datetime import datetime, timedelta
 
 import pytest
 
-from geodata_sync import ingest, sync
-from geodata_sync.cli import main
-from geodata_sync.loader import default_table, load
-from geodata_sync.schedule import cron_matches, due
+from geoserver_dataops import ingest, sync
+from geoserver_dataops.cli import main
+from geoserver_dataops.loader import default_table, load
+from geoserver_dataops.schedule import cron_matches, due
 
 NOW = datetime(2026, 11, 10, 2, 0, 0)  # a Tuesday
 
@@ -118,18 +118,18 @@ def test_suffixed_names_fit():
 # --- set-up errors
 
 PROJECT = """\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: { name: t }
 spec:
   database: { connection: { secret: pg } }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: { name: web }
 spec: { type: url }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: { name: roads }
 spec: { source: web, url: "https://x/roads.zip" }
@@ -140,7 +140,7 @@ spec: { source: web, url: "https://x/roads.zip" }
 def proj(tmp_path, monkeypatch):
     (tmp_path / "project.yaml").write_text(PROJECT)
     for key in sync.DB_KEYS:
-        monkeypatch.delenv(f"GEODATA_PG_{key.upper()}", raising=False)
+        monkeypatch.delenv(f"DATAOPS_PG_{key.upper()}", raising=False)
     return tmp_path
 
 
@@ -148,7 +148,7 @@ def test_missing_database_secret_says_what_to_set(proj, capsys):
     assert main(["sync", "-C", str(proj)]) == 2
     err = capsys.readouterr().err
     assert "the database secret pg is missing host, database, username, password" in err
-    assert "$GEODATA_PG_HOST" in err
+    assert "$DATAOPS_PG_HOST" in err
 
 
 def test_database_from_secrets_file_with_default_schemas(proj):
@@ -170,6 +170,6 @@ def test_unknown_dataset(proj, capsys):
 
 def test_unreachable_database(proj, capsys, monkeypatch):
     for key, value in {"HOST": "127.0.0.1", "PORT": "1", "DATABASE": "x", "USERNAME": "u", "PASSWORD": "p"}.items():
-        monkeypatch.setenv(f"GEODATA_PG_{key}", value)
+        monkeypatch.setenv(f"DATAOPS_PG_{key}", value)
     assert main(["sync", "-C", str(proj)]) == 1
     assert "can't connect to the database at 127.0.0.1:1" in capsys.readouterr().err

@@ -1,7 +1,7 @@
 # A PostGIS database to try the examples on (README, quick start).
 #   docker compose -f examples/compose.yaml up -d --wait
 #   docker compose -f examples/compose.yaml down -v
-name: geodata-examples
+name: dataops-examples
 services:
   db:
     image: postgis/postgis:18-3.7

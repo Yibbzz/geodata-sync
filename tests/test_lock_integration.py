@@ -1,10 +1,10 @@
-"""One `geodata sync` at a time, and what a killed run leaves in staging is cleared up.
+"""One `dataops sync` at a time, and what a killed run leaves in staging is cleared up.
 Against a real PostGIS (see test_sync_integration.py)."""
 
 import psycopg2
 import pytest
 
-from geodata_sync import ingest
+from geoserver_dataops import ingest
 from test_sync_integration import DB, env, project, schemas, server, sync, tables_in  # noqa: F401 (fixtures)
 
 pytestmark = pytest.mark.integration
@@ -26,7 +26,7 @@ def test_a_second_run_at_the_same_time_changes_nothing(tmp_path, server, schemas
     try:
         assert ingest.hold_lock(db) is None
         assert sync(root) == 1
-        assert f"another `geodata sync` is loading into this database (staging schema {staging})" in capsys.readouterr().err
+        assert f"another `dataops sync` is loading into this database (staging schema {staging})" in capsys.readouterr().err
         assert tables_in(live) == []
     finally:
         held.close()

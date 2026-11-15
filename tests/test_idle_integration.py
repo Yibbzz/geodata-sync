@@ -5,7 +5,7 @@ Against a real PostGIS (see test_sync_integration.py)."""
 import psycopg2.extensions
 import pytest
 
-from geodata_sync import ingest
+from geoserver_dataops import ingest
 from test_sync_integration import env, project, schemas, server, sync, tables_in  # noqa: F401 (fixtures)
 
 pytestmark = pytest.mark.integration

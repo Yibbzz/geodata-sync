@@ -3,9 +3,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "geodata-sync"
+name = "geoserver-dataops"
 version = "0.1.0"
-description = "Open GIS data (Ordnance Survey, CKAN portals, WFS, OGC API Features, plain links) loaded into PostGIS and kept up to date, from YAML files"
+description = "The data GeoServer publishes, loaded into PostGIS and kept up to date from YAML files: ArcGIS, CKAN, STAC, Overture, OpenStreetMap, WFS, OGC API and more"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -17,13 +17,13 @@ dev = ["pytest", "pyarrow>=14", "shapely>=2"]
 overture = ["pyarrow>=14", "shapely>=2"]  # the overture source reads GeoParquet
 
 [project.scripts]
-geodata = "geodata_sync.cli:main"
+dataops = "geoserver_dataops.cli:main"
 
 [tool.setuptools]
-packages = ["geodata_sync", "geodata_sync.sources"]
+packages = ["geoserver_dataops", "geoserver_dataops.sources"]
 
 [tool.setuptools.package-data]
-geodata_sync = ["schema/*.json"]
+geoserver_dataops = ["schema/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

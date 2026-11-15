@@ -2,11 +2,11 @@
 
 import pytest
 
-from geodata_sync import discover
-from geodata_sync.cli import main
-from geodata_sync.sources import NotFound, SourceError
-from geodata_sync.sources.arcgis import ArcGIS, split
-from geodata_sync.sources.formats import SERVICE_TYPES, service, service_address
+from geoserver_dataops import discover
+from geoserver_dataops.cli import main
+from geoserver_dataops.sources import NotFound, SourceError
+from geoserver_dataops.sources.arcgis import ArcGIS, split
+from geoserver_dataops.sources.formats import SERVICE_TYPES, service, service_address
 from fake_arcgis import ArcGISServer
 
 

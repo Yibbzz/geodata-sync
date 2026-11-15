@@ -42,7 +42,7 @@ jobs:
           git switch -c "$BRANCH"
           git commit -am "$TITLE"
           git push origin "$BRANCH"
-          gh pr create --head "$BRANCH" --title "$TITLE" --body "A new release: tests/versions.py pinned it. CI runs the e2e tests on all three GeoServers; if one fails, its log says what the new version does differently with what geodata loads."
+          gh pr create --head "$BRANCH" --title "$TITLE" --body "A new release: tests/versions.py pinned it. CI runs the e2e tests on all three GeoServers; if one fails, its log says what the new version does differently with what dataops loads."
           # GitHub holds CI on a pull request the workflow's token opened ("action_required"): approve it,
           # so it runs and shows on the pull request. If no run turns up, start one.
           for _ in $(seq 1 24); do

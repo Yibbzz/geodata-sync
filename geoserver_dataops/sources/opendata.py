@@ -37,7 +37,7 @@ class _Portal:
         if r.status_code == 404:
             raise NotFound(what)
         if r.status_code in (401, 403):
-            raise SourceError(f"{self.portal} refused the request (HTTP {r.status_code}); geodata reads public datasets only")
+            raise SourceError(f"{self.portal} refused the request (HTTP {r.status_code}); dataops reads public datasets only")
         if r.status_code != 200:
             raise SourceError(f"{self.portal} answered HTTP {r.status_code} for {url}")
         try:
@@ -104,7 +104,7 @@ class Socrata(_Portal):
         if found is None:
             raise NotFound(dataset_id)
         if not self.spatial(found):
-            raise SourceError(f"{dataset_id} has no geometry column, so there is nothing geodata can load")
+            raise SourceError(f"{dataset_id} has no geometry column, so there is nothing dataops can load")
         return self._product(found)
 
 
@@ -148,5 +148,5 @@ class OpenDataSoft(_Portal):
             raise SourceError("an OpenDataSoft dataset is exported whole; there are no resources to pick")
         d = self._json(f"{self.portal}{self.API}/catalog/datasets/{quote(dataset_id)}", dataset_id)
         if not self.spatial(d):
-            raise SourceError(f"{dataset_id} has no geometry (no geo feature), so there is nothing geodata can load")
+            raise SourceError(f"{dataset_id} has no geometry (no geo feature), so there is nothing dataops can load")
         return self._product(d)

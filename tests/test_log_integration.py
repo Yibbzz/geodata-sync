@@ -3,7 +3,7 @@
 import psycopg2
 import pytest
 
-from geodata_sync import ingest
+from geoserver_dataops import ingest
 from test_sync_integration import DB, query
 
 pytestmark = pytest.mark.integration

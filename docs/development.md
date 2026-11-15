@@ -11,7 +11,7 @@ docker run -d --rm --name test-postgis -p 55432:5432 \
 TEST_DB_HOST=localhost TEST_DB_PORT=55432 .venv/bin/pytest -m integration
 ```
 
-The e2e test ([`tests/test_e2e_geoserver.py`](../tests/test_e2e_geoserver.py)) has a real GeoServer publish what `geodata sync` loaded (a table and a Cloud-Optimised GeoTIFF) and serve it back through WFS and WCS, then loads new versions under the running GeoServer and checks it serves those:
+The e2e test ([`tests/test_e2e_geoserver.py`](../tests/test_e2e_geoserver.py)) has a real GeoServer publish what `dataops sync` loaded (a table and a Cloud-Optimised GeoTIFF) and serve it back through WFS and WCS, then loads new versions under the running GeoServer and checks it serves those:
 
 ```bash
 tests/e2e/up.sh standard          # or no argument for GeoServer Cloud, standard-2 for GeoServer 2.28
@@ -30,4 +30,19 @@ CI runs the tests with a real PostGIS (`test`), the e2e test on GeoServer Cloud 
 
 ## Releasing
 
-Set the version in `pyproject.toml` and `geodata_sync/__init__.py`, merge, then push the tag `v<version>`: the Release workflow publishes the package to PyPI (`geodata-sync`), the image to `ghcr.io/yibbzz/geodata-sync`, and a GitHub release.
+Set the version in `pyproject.toml` and `geoserver_dataops/__init__.py`, merge, then push the tag `v<version>`: the Release workflow publishes the package to PyPI (`geoserver-dataops`), the image to `ghcr.io/yibbzz/geoserver-dataops`, and a GitHub release.
+
+## Renamed from geodata-sync
+
+The project was geodata-sync until 0.1.0. To move a project and its deployment over:
+
+| Was | Now |
+| --- | --- |
+| `pip install geodata-sync`, `ghcr.io/yibbzz/geodata-sync` | `pip install geoserver-dataops`, `ghcr.io/yibbzz/geoserver-dataops` |
+| the `geodata` command | `dataops` |
+| `apiVersion: geodata/v1alpha1` in every file | `apiVersion: dataops/v1alpha1` |
+| `GEODATA_<SECRET>_<KEY>`, `GEODATA_SECRETS_DIR`, `GEODATA_DATA_DIR`, `GEODATA_MAX_UNPACKED_BYTES` | `DATAOPS_...` |
+| Secrets mounted under `/etc/geodata/secrets` | `/etc/dataops/secrets` |
+| Raster backups in `.geodata-backups/` beside the data | `.dataops-backups/` (the old folder is no longer pruned: delete it when you no longer need it) |
+
+`sed -i 's#geodata/v1alpha1#dataops/v1alpha1#' $(grep -rl geodata/v1alpha1 my-project)` changes the files. The ingest log (`public.os_ingest_log`) keeps its name, so a dataset's history and versions carry on: nothing is loaded again because of the rename.

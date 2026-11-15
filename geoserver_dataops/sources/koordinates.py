@@ -97,7 +97,7 @@ class Koordinates:
         layer = self._json("GET", f"{self.api}/layers/{layer_id}/", layer_id)
         kind = layer.get("kind")
         if kind not in ("vector", "table"):
-            raise SourceError(f"layer {layer_id} is a {kind or 'layer'}; geodata loads Koordinates' vector layers and tables")
+            raise SourceError(f"layer {layer_id} is a {kind or 'layer'}; dataops loads Koordinates' vector layers and tables")
         return self._product(layer)
 
     def download_url(self, download: Download) -> str:

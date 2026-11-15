@@ -3,5 +3,5 @@
 !pyproject.toml
 !README.md
 !LICENSE
-!geodata_sync/
+!geoserver_dataops/
 **/__pycache__

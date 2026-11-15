@@ -1,4 +1,4 @@
-"""`geodata sync` of an ArcGIS REST layer into a real PostGIS, from the fake ArcGIS server: GDAL pages
+"""`dataops sync` of an ArcGIS REST layer into a real PostGIS, from the fake ArcGIS server: GDAL pages
 through it, the table is named after the layer, and its last edit is the version.
 Against a real PostGIS (see test_sync_integration.py)."""
 
@@ -12,7 +12,7 @@ pytestmark = pytest.mark.integration
 
 def project(tmp_path, root, schemas, tables=""):
     (tmp_path / "project.yaml").write_text(f"""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: {{ name: t }}
 spec:
@@ -20,12 +20,12 @@ spec:
     connection: {{ secret: testdb }}
     schemas: {{ live: {schemas[0]}, staging: {schemas[1]}, backup: {schemas[2]} }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: hydro }}
 spec: {{ type: arcgis, url: "{root}" }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: sites }}
 spec:

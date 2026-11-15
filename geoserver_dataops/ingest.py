@@ -49,14 +49,14 @@ CREATE TABLE IF NOT EXISTS {LOG_TABLE} (
     finished_at     TIMESTAMP
 );
 ALTER TABLE {LOG_TABLE} ADD COLUMN IF NOT EXISTS tables TEXT;
--- every run and `geodata status` look up each dataset's latest rows
+-- every run and `dataops status` look up each dataset's latest rows
 CREATE INDEX IF NOT EXISTS os_ingest_log_dataset_started ON {LOG_TABLE} (dataset_id, started_at);
 """
 
 
-# Most a download may unpack to, so a zip bomb can't fill the disk (GEODATA_MAX_UNPACKED_BYTES overrides)
+# Most a download may unpack to, so a zip bomb can't fill the disk (DATAOPS_MAX_UNPACKED_BYTES overrides)
 MAX_UNPACKED = 100 * 1000**3
-MAX_UNPACKED_ENV = "GEODATA_MAX_UNPACKED_BYTES"
+MAX_UNPACKED_ENV = "DATAOPS_MAX_UNPACKED_BYTES"
 
 
 class LoadError(Exception):
@@ -131,7 +131,7 @@ def hold_lock(db: Database):
     conn = db.connect()
     conn.autocommit = True
     with conn.cursor() as cur:
-        cur.execute("SELECT pg_try_advisory_lock(hashtext('geodata-sync'), hashtext(%s))", (db.staging,))
+        cur.execute("SELECT pg_try_advisory_lock(hashtext('geoserver-dataops'), hashtext(%s))", (db.staging,))
         if cur.fetchone()[0]:
             return conn
     conn.close()

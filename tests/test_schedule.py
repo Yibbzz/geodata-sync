@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from geodata_sync.schedule import next_check
+from geoserver_dataops.schedule import next_check
 
 NOW = datetime(2026, 11, 10, 2, 0)
 

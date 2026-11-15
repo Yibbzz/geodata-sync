@@ -8,8 +8,8 @@ import pytest
 pytest.importorskip("pyarrow")
 pytest.importorskip("shapely")
 
-from geodata_sync.sources import NotFound, SourceError  # noqa: E402
-from geodata_sync.sources.overture import Overture  # noqa: E402
+from geoserver_dataops.sources import NotFound, SourceError  # noqa: E402
+from geoserver_dataops.sources.overture import Overture  # noqa: E402
 from fake_overture import OvertureBucket  # noqa: E402
 
 AREA = {"bbox": [0, 51, 1, 52]}
@@ -72,5 +72,5 @@ def test_without_pyarrow_it_says_what_to_install(bucket, tmp_path, monkeypatch):
     monkeypatch.setattr(builtins, "__import__",
                         lambda name, *a, **k: (_ for _ in ()).throw(ImportError(name)) if name.startswith("pyarrow") else real(name, *a, **k))
     client = Overture(url=bucket.url)
-    with pytest.raises(SourceError, match=r"pip install 'geodata-sync\[overture\]'"):
+    with pytest.raises(SourceError, match=r"pip install 'geoserver-dataops\[overture\]'"):
         client.fetch(client.selection("places/place", AREA).chosen, tmp_path / "x.geojsonl")

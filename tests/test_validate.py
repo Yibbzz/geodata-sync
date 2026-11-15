@@ -1,10 +1,10 @@
-"""geodata validate: rules beyond the JSON Schema."""
+"""dataops validate: rules beyond the JSON Schema."""
 
-from geodata_sync.loader import load
-from geodata_sync.validate import validate
+from geoserver_dataops.loader import load
+from geoserver_dataops.validate import validate
 
 PROJECT = """\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: { name: t }
 spec:
@@ -14,12 +14,12 @@ spec:
 
 def source(spec: str) -> str:
     return f"""---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: s }}
 spec: {spec}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: d }}
 spec: {{ source: s, product: p }}

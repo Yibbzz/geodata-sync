@@ -1,6 +1,6 @@
 # The database this project loads into, and defaults for its datasets. configops's
 # examples/uk-basemap publishes the tables as GeoServer layers.
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata:
   name: uk-basemap

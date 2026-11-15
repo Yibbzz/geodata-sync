@@ -1,4 +1,4 @@
-"""`geodata sync` against a real PostGIS, with a file served over HTTP.
+"""`dataops sync` against a real PostGIS, with a file served over HTTP.
 
 Needs ogr2ogr and PostGIS, set with TEST_DB_HOST, TEST_DB_PORT, TEST_DB_NAME,
 TEST_DB_USER, TEST_DB_PASSWORD (see test_pipeline_integration.py). Each test
@@ -18,7 +18,7 @@ import zipfile
 import psycopg2
 import pytest
 
-from geodata_sync.cli import main
+from geoserver_dataops.cli import main
 
 pytestmark = pytest.mark.integration
 
@@ -66,7 +66,7 @@ def server(tmp_path_factory):
 
 def project(tmp_path, url, schemas, tables="", validation="", backups=1):
     (tmp_path / "project.yaml").write_text(f"""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: {{ name: t }}
 spec:
@@ -75,12 +75,12 @@ spec:
     schemas: {{ live: {schemas[0]}, staging: {schemas[1]}, backup: {schemas[2]} }}
   backups: {backups}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: web }}
 spec: {{ type: url }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: sites }}
 spec:
@@ -94,7 +94,7 @@ spec:
 def env(monkeypatch):
     for key, value in {"HOST": DB["host"], "PORT": str(DB["port"]), "DATABASE": DB["dbname"],
                        "USERNAME": DB["user"], "PASSWORD": DB["password"]}.items():
-        monkeypatch.setenv(f"GEODATA_TESTDB_{key}", value)
+        monkeypatch.setenv(f"DATAOPS_TESTDB_{key}", value)
 
 
 def clear_log():

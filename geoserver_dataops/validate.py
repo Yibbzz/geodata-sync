@@ -1,6 +1,6 @@
 """Check a project's files against the spec, without touching the network.
 
-Two passes: each resource against the JSON Schema (geodata_sync/schema/v1alpha1.json),
+Two passes: each resource against the JSON Schema (geoserver_dataops/schema/v1alpha1.json),
 then the rules that span files: references between resources, and tables or files
 two datasets would both write.
 """
@@ -26,7 +26,7 @@ SOURCES_NEEDING_KEYS = {"koordinates"}  # send the credentials secret's apiKey; 
 
 
 def schema() -> dict:
-    return json.loads(package_files.files("geodata_sync").joinpath("schema/v1alpha1.json").read_text())
+    return json.loads(package_files.files("geoserver_dataops").joinpath("schema/v1alpha1.json").read_text())
 
 
 def validate(project: Project) -> list[Problem]:

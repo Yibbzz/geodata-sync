@@ -1,4 +1,4 @@
-"""`geodata sync` of a catalogue record's file, through both catalogue protocols.
+"""`dataops sync` of a catalogue record's file, through both catalogue protocols.
 Against a real PostGIS (see test_sync_integration.py)."""
 
 import pytest
@@ -15,7 +15,7 @@ def test_a_records_file_loads_and_reloads_only_when_the_record_changes(tmp_path,
     server = CatalogueServer()
     try:
         (tmp_path / "project.yaml").write_text(f"""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: {{ name: t }}
 spec:
@@ -23,12 +23,12 @@ spec:
     connection: {{ secret: testdb }}
     schemas: {{ live: {live}, staging: {schemas[1]}, backup: {schemas[2]} }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: catalogue }}
 spec: {{ type: {kind}, url: "{server.base}{path}" }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: sites }}
 spec: {{ source: catalogue, product: flood-areas }}

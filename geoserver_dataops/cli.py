@@ -1,4 +1,4 @@
-"""The geodata command."""
+"""The dataops command."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def shown(path: Path) -> str:
 def cmd_validate(args) -> int:
     root = Path(args.dir)
     if not root.is_dir():
-        print(f"geodata: {root} is not a directory", file=sys.stderr)
+        print(f"dataops: {root} is not a directory", file=sys.stderr)
         return 2
     project = load(root)
     problems = validate(project)
@@ -62,7 +62,7 @@ def cmd_discover(args) -> int:
             search=args.search, limit=args.limit, resource=args.resource, url=args.url,
         )
     except DiscoverError as e:
-        print(f"geodata discover: {e}", file=sys.stderr)
+        print(f"dataops discover: {e}", file=sys.stderr)
         return e.code
 
 
@@ -70,7 +70,7 @@ def cmd_status(args) -> int:
     try:
         return status(Path(args.dir), fmt=args.format)
     except SyncError as e:
-        print(f"geodata status: {e}", file=sys.stderr)
+        print(f"dataops status: {e}", file=sys.stderr)
         return e.code
 
 
@@ -78,13 +78,13 @@ def cmd_sync(args) -> int:
     try:
         return sync(Path(args.dir), args.datasets, force=args.force, loaded_file=args.loaded)
     except SyncError as e:
-        print(f"geodata sync: {e}", file=sys.stderr)
+        print(f"dataops sync: {e}", file=sys.stderr)
         return e.code
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="geodata", description="Open GIS data loaded into PostGIS, and kept up to date, from YAML files.")
-    parser.add_argument("--version", action="version", version=f"geodata {__version__}")
+    parser = argparse.ArgumentParser(prog="dataops", description="GeoServer DataOps: the data GeoServer publishes, loaded into PostGIS and kept up to date, from YAML files.")
+    parser.add_argument("--version", action="version", version=f"dataops {__version__}")
     commands = parser.add_subparsers(dest="command", metavar="command")
 
     v = commands.add_parser("validate", help="check the files against the spec (no network)")

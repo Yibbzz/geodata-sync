@@ -1,11 +1,11 @@
-"""`geodata sync` over several datasets: one dataset's failure, whatever it is, doesn't stop the others.
+"""`dataops sync` over several datasets: one dataset's failure, whatever it is, doesn't stop the others.
 Against a real PostGIS (see test_sync_integration.py)."""
 
 import psycopg2
 import pytest
 
-from geodata_sync import sync as sync_module
-from geodata_sync.cli import main
+from geoserver_dataops import sync as sync_module
+from geoserver_dataops.cli import main
 from test_sync_integration import DB, env, query, schemas, server, tables_in  # noqa: F401 (fixtures)
 
 pytestmark = pytest.mark.integration
@@ -14,13 +14,13 @@ pytestmark = pytest.mark.integration
 def two_datasets(tmp_path, url, schemas):
     """`broken` (sorted first) and `sites`, both from `url`."""
     datasets = "".join(f"""---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: {name} }}
 spec: {{ source: web, url: "{url}" }}
 """ for name in ("broken", "sites"))
     (tmp_path / "project.yaml").write_text(f"""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: {{ name: t }}
 spec:
@@ -28,7 +28,7 @@ spec:
     connection: {{ secret: testdb }}
     schemas: {{ live: {schemas[0]}, staging: {schemas[1]}, backup: {schemas[2]} }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: web }}
 spec: {{ type: url }}
@@ -73,7 +73,7 @@ def test_an_unexpected_error_fails_only_its_dataset(tmp_path, server, schemas, e
 
 def test_a_download_that_fails_mid_run_fails_only_its_dataset(tmp_path, server, schemas, env, broken_log, capsys, monkeypatch):
     """The file is gone by the time it's downloaded (requests' HTTPError, an OSError)."""
-    from geodata_sync.sources.url import URL
+    from geoserver_dataops.sources.url import URL
     real = URL.download_url
     monkeypatch.setattr(URL, "download_url", lambda self, d: real(self, d).replace("sites.zip?gone", "missing.zip"))
     root = two_datasets(tmp_path, server, schemas)
