@@ -57,8 +57,10 @@ def wanted_tables(dataset: Resource) -> dict[str, dict] | None:
     return {layer: options or {} for layer, options in tables.items()} if tables else None
 
 
-def plan_layers(dataset: Resource, found: list[tuple[str, str, str | None]], project_crs: str) -> list[ingest.Layer]:
-    """The layers to load and their tables, from the (source, layer, CRS) a download or service holds."""
+def plan_layers(dataset: Resource, found: list[tuple[str, str, str | None]], project_crs: str,
+                gdal_names: dict[str, str] | None = None) -> list[ingest.Layer]:
+    """The layers to load and their tables, from the (source, layer, CRS) a download or service holds.
+    `gdal_names` gives GDAL's name for a layer known by another (an ArcGIS layer's, ESRIJSON)."""
     wanted = wanted_tables(dataset)
     by_name = {layer: (source, crs) for source, layer, crs in found}
     if wanted:
@@ -79,6 +81,7 @@ def plan_layers(dataset: Resource, found: list[tuple[str, str, str | None]], pro
             table=options.get("name") or default_table(dataset.name, layer),
             # a CRS the Dataset gives wins; otherwise assign the project's only when the file has none
             crs=options.get("crs") or (None if file_crs else project_crs),
+            gdal_layer=(gdal_names or {}).get(layer),
         ))
     tables = [x.table for x in layers]
     clashes = sorted({t for t in tables if tables.count(t) > 1})
@@ -128,10 +131,12 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
     if raster_spec:
         return sync_raster(conn, dataset, src, product, last, started, force, project, project_crs)
     with tempfile.TemporaryDirectory(prefix="geodata-sync-") as tmp:
-        sha = None
+        sha, gdal_names = None, None
         if chosen.service:
-            connection, layer = src.client.gdal_source(product)
-            found = [(connection, layer, None)]
+            connection, gdal_layer, *named = src.client.gdal_source(product)
+            name = named[0] if named else gdal_layer
+            # A service (WFS, OGC API, ArcGIS) always tells GDAL its layer's CRS: the project's mustn't be put over it
+            found, gdal_names = [(connection, name, "declared by the service")], {name: gdal_layer}
         else:
             work = Path(tmp)
             # the download's own name: GDAL names a single file's layer after it (roads.geojson -> roads)
@@ -143,7 +148,7 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
                 return f"{dataset.name}: up to date (same file as last time)", []
             conn.rollback()  # and the one that check began, while the file is unzipped and read
             found = ingest.file_layers(path, work)
-        layers = plan_layers(dataset, found, project_crs)
+        layers = plan_layers(dataset, found, project_crs, gdal_names)
         t0 = time.monotonic()
         staged = ingest.load_all(
             conn, db, layers,

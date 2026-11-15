@@ -192,7 +192,8 @@
             "url",
             "ckan",
             "ogc-api-features",
-            "wfs"
+            "wfs",
+            "arcgis"
           ]
         },
         "credentials": {
@@ -201,7 +202,7 @@
         "url": {
           "type": "string",
           "pattern": "^https?://",
-          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint"
+          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, or an ArcGIS REST services directory"
         }
       }
     },

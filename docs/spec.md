@@ -83,8 +83,8 @@ spec:
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `type` | yes | One of the types below |
-| `url` | for `ckan`, `ogc-api-features`, `wfs` | The source's address. For CKAN, the portal (`https://data.gov.uk`); an address already inside `/api/` (such as `https://portal.example/api/3/action`) is used as given. For WFS, the service (`https://host/wfs`); request parameters copied with it (`?service=WFS&request=GetCapabilities`) are dropped, others (`?map=`) kept. For OGC API Features, the API's landing page; a collection's address is cut back to it |
-| `credentials.secret` | no | Secret with `apiKey`. For CKAN it is an API token, sent only to the portal, never to the servers its files are on. Not yet used by `wfs` or `ogc-api-features`, which work with public services only so far |
+| `url` | for `ckan`, `ogc-api-features`, `wfs`, `arcgis` | The source's address. For CKAN, the portal (`https://data.gov.uk`); an address already inside `/api/` (such as `https://portal.example/api/3/action`) is used as given. For WFS, the service (`https://host/wfs`); request parameters copied with it (`?service=WFS&request=GetCapabilities`) are dropped, others (`?map=`) kept. For OGC API Features, the API's landing page; a collection's address is cut back to it. For ArcGIS, the services directory (`https://services.arcgis.com/<org>/arcgis/rest/services`), a folder in it, one service or one layer: `discover` lists the layers below it |
+| `credentials.secret` | no | Secret with `apiKey`. For CKAN it is an API token, sent only to the portal, never to the servers its files are on. Not yet used by `wfs`, `ogc-api-features` or `arcgis`, which work with public services only so far |
 
 | `type` | Lists products (`discover`) | Needs a key | Status |
 | --- | --- | --- | --- |
@@ -93,6 +93,7 @@ spec:
 | `ckan` (data.gov.uk and many city, regional and national portals) | yes, by search | no for public data | `discover` built |
 | `wfs` (versions 1.0 to 2.0) | yes: feature types | usually no | `discover` built |
 | `ogc-api-features` | yes: feature collections | usually no | `discover` built |
+| `arcgis` (ArcGIS Server and ArcGIS Online: much US, Canadian and Australian government data) | yes: the layers of its FeatureServer and MapServer services | no for public services | built: a layer's last edit is its version, so an unchanged layer isn't loaded again |
 
 Each type is a plug-in with two parts: list what's available, and fetch one product with its version. Adding a provider means adding one plug-in.
 
@@ -117,11 +118,11 @@ spec:
 | Field | Required | Default | Meaning |
 | --- | --- | --- | --- |
 | `source` | yes | | Name of a Source |
-| `product` | for `os-downloads`, `ckan`, `wfs` | | Product, package or collection ID at the source |
+| `product` | for `os-downloads`, `ckan`, `wfs`, `ogc-api-features`, `arcgis` | | Product, package or collection ID at the source; for `arcgis`, the layer's path below the services directory (`Hydrography/Rivers/FeatureServer/0`) |
 | `url` | for `url` | | File to download (zip, GeoPackage, GeoJSON, CSV, Shapefile) |
 | `resource` | no, `ckan` only | the best loadable file | Which file of the package: a resource ID or name, as `discover` lists them. Packages often hold the same data in several formats, or several files |
 | `update` | no | `manual` | When `sync` checks for a new version |
-| `tables` | no | every layer in the file | Which layers of the downloaded file to load, and as what |
+| `tables` | no | every layer in the file | Which layers of the downloaded file to load, and as what. A service's one layer is named as `discover` lists it (an ArcGIS layer by its name, `Rivers`) |
 | `tables.<layer>.name` | no | `<dataset>_<layer>` with dashes as underscores | Table name in the live schema |
 | `tables.<layer>.crs` | no | from the file, else the project's `crs` | Override when the file doesn't declare its CRS |
 | `validation.dropInvalidGeometries` | no | `true` | Leave out rows whose geometry PostGIS calls invalid |
