@@ -90,6 +90,7 @@ class Layer:
     layer: str
     table: str
     crs: str | None = None  # assigned when given (the file declares none, or the Dataset overrides it)
+    gdal_layer: str | None = None  # GDAL's name for the layer, when `layer` is another (ArcGIS's are all ESRIJSON)
 
 
 @dataclass
@@ -312,7 +313,7 @@ def load(db: Database, layer: Layer, staging: str) -> str:
     if shutil.which("ogr2ogr") is None:
         raise LoadError("loading needs GDAL's ogr2ogr on the PATH")
     cmd = [
-        "ogr2ogr", "-f", "PostgreSQL", *remote.input_drivers(layer.source), db.ogr_target(), layer.source, layer.layer,
+        "ogr2ogr", "-f", "PostgreSQL", *remote.input_drivers(layer.source), db.ogr_target(), layer.source, layer.gdal_layer or layer.layer,
         "-nln", f"{db.staging}.{staging}",
         "-lco", "GEOMETRY_NAME=geom", "-lco", "PRECISION=NO",
         "-nlt", "PROMOTE_TO_MULTI", "-gt", "65536",

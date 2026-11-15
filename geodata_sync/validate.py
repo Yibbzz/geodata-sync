@@ -16,8 +16,8 @@ from jsonschema.exceptions import best_match
 
 from .loader import Problem, Project, Resource, default_table
 
-SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs"}
-SOURCES_WITH_ADDRESSES = {"ckan", "ogc-api-features", "wfs"}  # need the Source's spec.url
+SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis"}
+SOURCES_WITH_ADDRESSES = {"ckan", "ogc-api-features", "wfs", "arcgis"}  # need the Source's spec.url
 SOURCES_WITH_KEYS = {"os-downloads", "ckan"}  # send the credentials secret's apiKey; the others send nothing
 
 

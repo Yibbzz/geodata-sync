@@ -6,6 +6,7 @@ URL, or nothing), so all three are tried.
 
 from __future__ import annotations
 
+import re
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 # Loadable file formats, best first: (label, declared names and media types, extensions)
@@ -60,7 +61,7 @@ def classify(fmt: str | None = None, url: str = "", mimetype: str | None = None,
 
 
 # Source type for each loadable service
-SERVICE_TYPES = {"WFS": "wfs", "OGC API Features": "ogc-api-features"}
+SERVICE_TYPES = {"WFS": "wfs", "OGC API Features": "ogc-api-features", "ArcGIS REST": "arcgis"}
 
 # Query parameters that belong to one request, not to a WFS's address
 OGC_REQUEST_PARAMS = {"service", "request", "version", "acceptversions", "typename", "typenames", "outputformat", "srsname", "count", "maxfeatures"}
@@ -89,6 +90,9 @@ def service_address(kind: str, url: str) -> str:
     request parameters, an OGC API link without /collections/... .
     """
     parts = urlparse(url.strip())
+    if kind == "ArcGIS REST":  # the service or layer, without /query and its parameters
+        path = re.sub(r"(/(?:FeatureServer|MapServer)(?:/\d+)?)/.*$", r"\1", parts.path.rstrip("/"))
+        return urlunparse(parts._replace(path=path, query="", fragment=""))
     if kind == "OGC API Features":
         path = parts.path.split("/collections")[0].rstrip("/")
         return urlunparse(parts._replace(path=path, query="", fragment=""))

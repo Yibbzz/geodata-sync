@@ -101,10 +101,11 @@ def matches(product: Product, search: str | None) -> bool:
 
 
 def source_types() -> dict[str, type]:
+    from .arcgis import ArcGIS
     from .ckan import CKAN
     from .ogcapi import OGCAPIFeatures
     from .os_downloads import OSDownloads
     from .url import URL
     from .wfs import WFS
 
-    return {"os-downloads": OSDownloads, "ckan": CKAN, "url": URL, "wfs": WFS, "ogc-api-features": OGCAPIFeatures}
+    return {"os-downloads": OSDownloads, "ckan": CKAN, "url": URL, "wfs": WFS, "ogc-api-features": OGCAPIFeatures, "arcgis": ArcGIS}
