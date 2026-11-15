@@ -29,6 +29,11 @@ def test_a_ckan_link_to_an_arcgis_layer_says_how_to_discover_it():
     url = "https://x.example/arcgis/rest/services/Roads/FeatureServer/0/query?where=1=1&f=geojson"
     assert service("esri rest", url) == "ArcGIS REST" and SERVICE_TYPES["ArcGIS REST"] == "arcgis"
     assert service_address("ArcGIS REST", url) == "https://x.example/arcgis/rest/services/Roads/FeatureServer/0"
+    for address in ("https://x.example/arcgis/rest/services/Roads/FeatureServer/0",
+                    "https://x.example/arcgis/rest/services/Roads/FeatureServer/0/"):
+        assert service_address("ArcGIS REST", address) == "https://x.example/arcgis/rest/services/Roads/FeatureServer/0"
+    assert service_address("ArcGIS REST", "https://x.example/arcgis/rest/services/Roads/MapServer?f=json") == \
+        "https://x.example/arcgis/rest/services/Roads/MapServer"
 
 
 def test_the_directory_lists_feature_layers_and_tables(server):

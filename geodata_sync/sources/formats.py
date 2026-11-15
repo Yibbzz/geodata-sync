@@ -91,7 +91,7 @@ def service_address(kind: str, url: str) -> str:
     """
     parts = urlparse(url.strip())
     if kind == "ArcGIS REST":  # the service or layer, without /query and its parameters
-        path = re.sub(r"(/(?:FeatureServer|MapServer)(?:/\d+)?)/.*$", r"\1", parts.path.rstrip("/"))
+        path = re.sub(r"(/(?:FeatureServer|MapServer)(?:/\d+(?=/|$))?)(?:/.*)?$", r"\1", parts.path.rstrip("/"))
         return urlunparse(parts._replace(path=path, query="", fragment=""))
     if kind == "OGC API Features":
         path = parts.path.split("/collections")[0].rstrip("/")
