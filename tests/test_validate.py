@@ -35,7 +35,7 @@ def test_credentials_a_source_type_never_sends_are_a_warning(tmp_path):
     found = messages(tmp_path, "{ type: wfs, url: 'https://example.org/wfs', credentials: { secret: k } }")
     assert [m for m in found if "credentials" in m[1]] == [("warning", (
         "spec.credentials: a wfs source sends no credentials, so a service that needs them will refuse it; "
-        "only os-downloads and ckan sources use an API key"))]
+        "only ckan, opendatasoft, os-downloads, socrata sources use an API key"))]
 
 
 def test_credentials_where_they_are_sent_are_fine(tmp_path):

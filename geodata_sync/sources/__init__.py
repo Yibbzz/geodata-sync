@@ -106,10 +106,11 @@ def source_types() -> dict[str, type]:
     from .catalogue import CSW, OGCAPIRecords
     from .ckan import CKAN
     from .ogcapi import OGCAPIFeatures
+    from .opendata import OpenDataSoft, Socrata
     from .stac import STAC
     from .os_downloads import OSDownloads
     from .url import URL
     from .wfs import WFS
 
     return {"os-downloads": OSDownloads, "ckan": CKAN, "url": URL, "wfs": WFS, "ogc-api-features": OGCAPIFeatures, "arcgis": ArcGIS, "stac": STAC,
-            "ogc-api-records": OGCAPIRecords, "csw": CSW}
+            "ogc-api-records": OGCAPIRecords, "csw": CSW, "socrata": Socrata, "opendatasoft": OpenDataSoft}
