@@ -263,6 +263,8 @@ For each dataset it checks:
 
 `--loaded FILE` writes what was loaded, one per line: `schema.table` for a table, the path under the data folder for a raster. GeoServer still has the old bounding boxes and cached tiles of layers on them; `configops refresh --from FILE` (GeoServer ConfigOps) brings them up to date.
 
+One run at a time: a run holds a PostgreSQL advisory lock on its staging schema, so a second `sync` started while one is loading (by hand, or a job that overran) stops at once with exit code 1 and changes nothing. The lock goes when the run's connection does, however the run ends. With it held, any staging table still there was left by a run that was killed part way, and is dropped, with a note.
+
 Every check (loaded, up to date, failed) is written to the ingest log in `public.os_ingest_log`, which is how the next run knows the version and when the dataset is next due. A failed check doesn't count, so the next run tries again. Schedules allow an hour's slack, so a daily dataset checked a little after 02:00 yesterday is due at 02:00 today; a cron expression is due when it has named a minute since the last check.
 
 The database comes from the Project's `database.connection` secret (keys `host`, `port`, `database`, `username`, `password`), so on a laptop: `GEODATA_DATABASE_HOST=localhost` and so on, or `secrets.yaml`.
