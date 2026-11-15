@@ -30,6 +30,16 @@ def env_name(secret: str, key: str) -> str:
 SECRETS_DIR = "GEODATA_SECRETS_DIR"
 
 
+# A query parameter that carries a credential: key, api_key, access_token, sig, X-Amz-Signature, X-Amz-Credential...
+SENSITIVE_PARAM = re.compile(r"([?&][\w.-]*(?:key|token|sig|signature|secret|password|credential)[\w.-]*=)[^&\s\"')]+", re.IGNORECASE)
+
+
+def redact(text: str) -> str:
+    """`text` with the credentials in any address it quotes replaced by ***. Errors from the HTTP
+    library quote the full address, API key and all, and they go to the job's log and the ingest log."""
+    return SENSITIVE_PARAM.sub(r"\1***", text)
+
+
 def lookup(secret: str, key: str, root: Path | None = None) -> str | None:
     value = os.environ.get(env_name(secret, key))
     if value:
