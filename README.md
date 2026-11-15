@@ -4,31 +4,30 @@
 
 <p align="center">Open GIS data loaded into PostGIS, and kept up to date, from YAML files.<br>Ready for <a href="https://github.com/geoserver/geoserver-cloud">GeoServer Cloud</a> and standard GeoServer to publish.</p>
 
-![Tested on GeoServer Cloud 3.0.2.1](https://img.shields.io/badge/GeoServer_Cloud-3.0.2.1-brightgreen) ![Tested on GeoServer 3.0.2](https://img.shields.io/badge/GeoServer-3.0.2-brightgreen) ![Tested on GeoServer 2.28.6](https://img.shields.io/badge/GeoServer-2.28.6-brightgreen) ![PostGIS 18-3.7](https://img.shields.io/badge/PostGIS-18--3.7-blue)
+<!-- badges -->![GeoServer Cloud 3.0.2.1](https://img.shields.io/badge/GeoServer_Cloud-3.0.2.1-brightgreen) ![GeoServer 3.0.2](https://img.shields.io/badge/GeoServer-3.0.2-brightgreen) ![GeoServer 2.28.6](https://img.shields.io/badge/GeoServer-2.28.6-brightgreen) ![PostGIS 18-3.7](https://img.shields.io/badge/PostGIS-18--3.7-blue)<!-- /badges -->
 
-<!-- tested-on -->Tested on **GeoServer Cloud 3.0.2.1**, **GeoServer 3.0.2** and **GeoServer 2.28.6**, with **PostGIS 18-3.7**: every pull request loads a table and a Cloud-Optimised GeoTIFF, has each GeoServer publish them and serve them back through WFS and WCS, then loads new versions under the running GeoServer and checks it serves those ([`tests/test_e2e_geoserver.py`](tests/test_e2e_geoserver.py)).<!-- /tested-on -->
+<!-- tested-on -->Tested on **GeoServer Cloud 3.0.2.1**, **GeoServer 3.0.2** and **GeoServer 2.28.6**, with **PostGIS 18-3.7**: on every pull request each one publishes what `geodata sync` loaded and serves it back, before and after a reload, and a daily job (`.github/workflows/versions.yaml`) tries each new release.<!-- /tested-on -->
 
-Say which datasets you want, where they come from and how often to check them; `geodata sync` downloads each new version, loads it into staging tables, checks it, backs up the old tables and swaps the new ones in, in one transaction.
+`geodata` keeps the open datasets you name in PostGIS, each at its newest version:
 
-- **Find data:** the Ordnance Survey's OpenData downloads, CKAN portals (data.gov.uk and many city, regional and national ones), WFS and OGC API Features services, or plain links. `geodata discover` lists what a source offers and the layers inside a download.
-- **Load it safely:** staging, invalid geometries left out, row counts checked, the old tables kept as backups; a load that fails changes nothing.
-- **Keep it up to date:** each dataset has a schedule (`daily`, `weekly`, `monthly` or a cron expression); `geodata sync` run nightly checks those that are due, and loads only a new version.
-- **Rasters too:** a raster download (OS Terrain 50's 2,800 grid tiles, say) becomes one Cloud-Optimised GeoTIFF.
+- **Find** data in the Ordnance Survey's downloads, CKAN portals, WFS and OGC API Features services, or behind plain links. `discover` lists what a source offers and the layers inside a download.
+- **Load** it safely: staged, checked (invalid geometries, row counts), then swapped in for the old tables in one transaction, which are kept as backups. A raster download becomes one Cloud-Optimised GeoTIFF.
+- **Keep it up to date.** Each dataset has a schedule; `sync`, run nightly, checks those that are due and loads only a new version.
 
-It only loads data. To publish the tables in GeoServer or GeoServer Cloud, use [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-configops): `configops refresh` brings GeoServer up to date after a load.
+It only loads data. [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-configops) publishes the tables.
 
-> **Status: early.** Expect breaking changes.
+> **Status: 0.x.** The file format may still change between releases.
 
 ## Install
 
 ```bash
-pip install geodata-sync                               # the geodata command; it needs GDAL's tools (apt install gdal-bin)
-docker run --rm ghcr.io/yibbzz/geodata-sync --help     # or its image, GDAL included
+pip install geodata-sync                            # Python 3.10+, and GDAL's tools (apt install gdal-bin)
+docker run --rm ghcr.io/yibbzz/geodata-sync --help  # or the image, GDAL included
 ```
 
-## Quick start
+## Example
 
-With `docker` and `geodata`. This starts a PostGIS database ([`examples/compose.yaml`](examples/compose.yaml)) and loads [`examples/quickstart`](examples/quickstart/project.yaml): Surrey Heath's conservation areas, from data.gov.uk.
+[`examples/quickstart/project.yaml`](examples/quickstart/project.yaml): Surrey Heath's conservation areas, from data.gov.uk, checked monthly.
 
 ```yaml
 apiVersion: geodata/v1alpha1
@@ -55,73 +54,72 @@ spec:
     conservation_areas: {}               # the layer in the download; table conservation_areas_conservation_areas
 ```
 
-```bash
-docker compose -f examples/compose.yaml up -d --wait
+```console
+$ docker compose -f examples/compose.yaml up -d --wait
 
-cat > examples/quickstart/secrets.yaml <<'EOF'          # git-ignored
+$ cat > examples/quickstart/secrets.yaml <<'EOF'
 database: { host: localhost, port: "5433", database: postgres, username: postgres, password: postgres }
 EOF
 
-geodata sync -C examples/quickstart
-#   conservation-areas: loaded 2026-11-11 in 0s: data_layers.conservation_areas_conservation_areas (10 rows)
-#     note: 1 invalid geometry left out
-geodata status -C examples/quickstart
-#   DATASET             UPDATE   LOADED      AT                ROWS  NEXT CHECK        LAST CHECK
-#   conservation-areas  monthly  2026-11-11  2026-11-13 08:51  10    2026-12-13 07:51  success
-geodata sync -C examples/quickstart
-#   conservation-areas: not due (monthly)
+$ geodata sync -C examples/quickstart
+  conservation-areas: loaded 2026-11-11 in 0s: data_layers.conservation_areas_conservation_areas (10 rows)
+    note: 1 invalid geometry left out
+$ geodata status -C examples/quickstart
+  DATASET             UPDATE   LOADED      AT                ROWS  NEXT CHECK        LAST CHECK
+  conservation-areas  monthly  2026-11-11  2026-11-13 08:51  10    2026-12-13 07:51  success
+$ geodata sync -C examples/quickstart
+  conservation-areas: not due (monthly)
 ```
 
-`docker compose -f examples/compose.yaml down -v` removes it all. [docs/spec.md](docs/spec.md) describes every kind, field and command.
+`docker compose -f examples/compose.yaml down -v` removes the database. Two larger examples: [`examples/uk-basemap`](examples/uk-basemap/) (OS Open Roads, Boundary-Line and the Environment Agency's flood zones: 3 GB, 20 minutes) and [`examples/terrain`](examples/terrain/) (OS Terrain 50 as one Cloud-Optimised GeoTIFF).
 
-## Examples
+## Common tasks
 
-| Project | What it holds |
+**Find a dataset** and the layers inside it:
+
+```bash
+geodata discover os-downloads                                   # what a source type offers
+geodata discover data-gov-uk --search "flood zones" -C my-data  # search a Source of the project
+geodata discover data-gov-uk <product> -C my-data               # its files, and their layers
+```
+
+**Load now** rather than when due: `geodata sync -C my-data <dataset>`; `--force` loads even when the version hasn't changed.
+
+**Refresh GeoServer after a load.** `sync --loaded` lists what it loaded, and `configops refresh` works out those layers' bounds again and clears their cached tiles:
+
+```bash
+geodata sync -C my-data --loaded loaded.txt
+configops refresh -C my-geoserver --from loaded.txt
+```
+
+**Keep logins out of the files.** A file names a Secret (`connection: { secret: database }`); its value comes from a Kubernetes Secret, a `GEODATA_<SECRET>_<KEY>` environment variable or a git-ignored `secrets.yaml`. Credentials in addresses are masked in errors and the ingest log.
+
+**Run it in Kubernetes** as a nightly CronJob that loads, then refreshes GeoServer: [docs/kubernetes.md](docs/kubernetes.md).
+
+## Built to be safe to run
+
+- **A load that fails changes nothing.** Live tables are only swapped once every table of the dataset has loaded and passed its checks.
+- **The old data is kept.** Each swap moves the old table to a backup schema; the newest `backups` are kept.
+- **What reads the tables keeps working.** The new table gets the old one's grants, and views on it are moved across.
+- **One sync at a time.** A run takes a lock in PostgreSQL, so a nightly job and a person can't load through each other.
+- **Downloads aren't trusted.** GDAL may only open them as data formats, and what an archive unpacks to is limited.
+- **Checked before it runs.** `geodata validate` reads the files without a network; problems come out as `file:line`.
+
+## What to know
+
+- Big layers over WFS or OGC API Features don't load reliably: use a file download when there is one ([docs/sources-notes.md](docs/sources-notes.md)).
+- A WFS or OGC API Features source has no version to compare, so it is loaded in full each time it is due.
+- A materialized view on a live table stops its load: drop it before and create it again after.
+
+## Documentation
+
+| | |
 | --- | --- |
-| [`examples/quickstart`](examples/quickstart/) | The quick start above: one dataset from data.gov.uk, 10 polygons. Loads in seconds |
-| [`examples/uk-basemap`](examples/uk-basemap/) | OS Open Roads (7.3M features), OS Boundary-Line, the Environment Agency's flood zones (415k polygons) and the conservation areas. Downloads about 3 GB; the first load takes 20 minutes or so. GeoServer ConfigOps's `examples/uk-basemap` publishes them |
-| [`examples/terrain`](examples/terrain/) | OS Terrain 50 (heights of Great Britain, 50 m) made into one Cloud-Optimised GeoTIFF |
+| [docs/spec.md](docs/spec.md) | The file format and every command |
+| [docs/kubernetes.md](docs/kubernetes.md) | Running it nightly in a cluster |
+| [docs/sources-notes.md](docs/sources-notes.md) | What we learned about the sources |
+| [docs/development.md](docs/development.md) | Tests, CI, new GeoServer versions, releasing |
 
-## How to
+## Licence
 
-**Find a dataset:**
-
-```bash
-geodata discover os-downloads                                   # OS products
-geodata discover data-gov-uk --search "flood zones" -C my-data  # a Source in the project
-geodata discover data-gov-uk <product> -C my-data               # its files and the layers inside
-geodata validate my-data                                        # problems come out as file:line
-```
-
-**Load now** rather than when due: `geodata sync -C my-data <dataset>` (`--force` loads it even when the version hasn't changed).
-
-**Refresh GeoServer after a load:** `geodata sync -C my-data --loaded loaded.txt` writes what it loaded (`schema.table`, or a raster's path), and `configops refresh -C my-geoserver --from loaded.txt` works out the bounds of the layers on them again and clears their cached tiles.
-
-**Keep the logins out of the files.** A project names Secrets (`connection: { secret: database }`); `geodata` reads each from a git-ignored `secrets.yaml` in the project folder, from `GEODATA_<SECRET>_<KEY>` environment variables, or from files `$GEODATA_SECRETS_DIR/<secret>/<key>` (how Kubernetes mounts Secrets).
-
-**Run it in Kubernetes:** [docs/kubernetes.md](docs/kubernetes.md) has a nightly CronJob that loads, then refreshes GeoServer.
-
-[docs/sources-notes.md](docs/sources-notes.md) has what we learned about the sources: big layers over WFS or OGC API Features don't load reliably, so use a file download when there is one.
-
-## Testing
-
-```bash
-python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-.venv/bin/pytest                                         # the PostGIS tests skip without one
-
-docker run -d --rm --name test-postgis -p 55432:5432 \
-  -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=gis postgis/postgis:18-3.7
-TEST_DB_HOST=localhost TEST_DB_PORT=55432 .venv/bin/pytest -m integration
-```
-
-CI runs the tests with a real PostGIS (test), shellcheck and a schema check of the Kubernetes example (lint), and the image build (image).
-
-## Releasing
-
-Set the version in `pyproject.toml` and `geodata_sync/__init__.py`, merge, then push the tag `v<version>`: the Release workflow publishes the package to PyPI (`geodata-sync`), the image to `ghcr.io/yibbzz/geodata-sync`, and a GitHub release.
-
-## Licence and data attribution
-
-MIT (see `LICENSE`). This code started in [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-configops), where it was the `sync` and `discover` commands.
-
-Data you load keeps its own licence. OS OpenData is released under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) and needs the attribution "Contains OS data © Crown copyright and database right &lt;year&gt;" wherever it's shown.
+MIT (see `LICENSE`). Data you load keeps its own licence: OS OpenData is under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) and needs "Contains OS data © Crown copyright and database right &lt;year&gt;" wherever it's shown.
