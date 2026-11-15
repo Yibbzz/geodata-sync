@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS {LOG_TABLE} (
     finished_at     TIMESTAMP
 );
 ALTER TABLE {LOG_TABLE} ADD COLUMN IF NOT EXISTS tables TEXT;
+-- every run and `geodata status` look up each dataset's latest rows
+CREATE INDEX IF NOT EXISTS os_ingest_log_dataset_started ON {LOG_TABLE} (dataset_id, started_at);
 """
 
 
