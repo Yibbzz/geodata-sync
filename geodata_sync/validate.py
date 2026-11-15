@@ -16,10 +16,11 @@ from jsonschema.exceptions import best_match
 
 from .loader import Problem, Project, Resource, default_table
 
-SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis", "stac", "ogc-api-records", "csw"}
-SOURCES_WITH_ADDRESSES = {"ckan", "ogc-api-features", "wfs", "arcgis", "stac", "ogc-api-records", "csw"}
+SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis", "stac", "ogc-api-records", "csw",
+                         "socrata", "opendatasoft"}
+SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads"}
 SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw"}  # products with several downloads to pick from  # need the Source's spec.url
-SOURCES_WITH_KEYS = {"os-downloads", "ckan"}  # send the credentials secret's apiKey; the others send nothing
+SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft"}  # send the credentials secret's apiKey; the others send nothing
 
 
 def schema() -> dict:
@@ -129,7 +130,7 @@ def check_references(project: Project) -> list[Problem]:
         if kind not in SOURCES_WITH_KEYS and s.spec.get("credentials"):
             problems.append(Problem(s.file, s.line(("spec", "credentials")),
                                     f"spec.credentials: a {kind} source sends no credentials, so a service that needs them "
-                                    "will refuse it; only os-downloads and ckan sources use an API key", s.label, "warning"))
+                                    f"will refuse it; only {', '.join(sorted(SOURCES_WITH_KEYS))} sources use an API key", s.label, "warning"))
 
     for d in project.of_kind("Dataset"):
         source = sources.get(d.spec.get("source"))
