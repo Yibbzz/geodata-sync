@@ -83,7 +83,7 @@ spec:
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `type` | yes | One of the types below |
-| `url` | for `ckan`, `ogc-api-features`, `wfs`, `arcgis`, `stac` | The source's address. For CKAN, the portal (`https://data.gov.uk`); an address already inside `/api/` (such as `https://portal.example/api/3/action`) is used as given. For WFS, the service (`https://host/wfs`); request parameters copied with it (`?service=WFS&request=GetCapabilities`) are dropped, others (`?map=`) kept. For OGC API Features, the API's landing page; a collection's address is cut back to it. For ArcGIS, the services directory (`https://services.arcgis.com/<org>/arcgis/rest/services`), a folder in it, one service or one layer: `discover` lists the layers below it. For STAC, the API's landing page (`https://earth-search.aws.element84.com/v1`) |
+| `url` | for every type but `os-downloads` and `url` | The source's address. For CKAN, the portal (`https://data.gov.uk`); an address already inside `/api/` (such as `https://portal.example/api/3/action`) is used as given. For WFS, the service (`https://host/wfs`); request parameters copied with it (`?service=WFS&request=GetCapabilities`) are dropped, others (`?map=`) kept. For OGC API Features, the API's landing page; a collection's address is cut back to it. For ArcGIS, the services directory (`https://services.arcgis.com/<org>/arcgis/rest/services`), a folder in it, one service or one layer: `discover` lists the layers below it. For STAC, the API's landing page (`https://earth-search.aws.element84.com/v1`). For OGC API Records, the landing page (its first catalogue of records is used) or one catalogue (`…/collections/<catalogue>`); ArcGIS Hub's search is one (`https://hub.arcgis.com/api/search/v1`). For CSW, the service (`https://<geonetwork>/geonetwork/srv/eng/csw`) |
 | `credentials.secret` | no | Secret with `apiKey`. For CKAN it is an API token, sent only to the portal, never to the servers its files are on. Not yet used by `wfs`, `ogc-api-features` or `arcgis`, which work with public services only so far |
 
 | `type` | Lists products (`discover`) | Needs a key | Status |
@@ -94,6 +94,8 @@ spec:
 | `wfs` (versions 1.0 to 2.0) | yes: feature types | usually no | `discover` built |
 | `ogc-api-features` | yes: feature collections | usually no | `discover` built |
 | `stac` (imagery and elevation catalogues: Earth Search's Sentinel, Landsat and Copernicus DEM, Digital Earth Australia, USGS) | yes: collections, and the files (assets) of their items | no for public catalogues | built: rasters only; the files of the items in an area, mosaicked into one COG |
+| `ogc-api-records` (catalogues: GeoNetwork, pycsw, ArcGIS Hub) | yes: records, by search | no for public catalogues | built: a record's best file is loaded, as a CKAN package's; its services are listed with how to discover them. The version is when the record last changed |
+| `csw` (Catalogue Service for the Web 2.0.2: the INSPIRE geoportals, GeoNetwork) | yes: records, by search | no for public catalogues | built, as `ogc-api-records` |
 | `arcgis` (ArcGIS Server and ArcGIS Online: much US, Canadian and Australian government data) | yes: the layers of its FeatureServer and MapServer services | no for public services | built: a layer's last edit is its version, so an unchanged layer isn't loaded again |
 
 Each type is a plug-in with two parts: list what's available, and fetch one product with its version. Adding a provider means adding one plug-in.
@@ -121,7 +123,7 @@ spec:
 | `source` | yes | | Name of a Source |
 | `product` | for `os-downloads`, `ckan`, `wfs`, `ogc-api-features`, `arcgis` | | Product, package or collection ID at the source; for `arcgis`, the layer's path below the services directory (`Hydrography/Rivers/FeatureServer/0`) |
 | `url` | for `url` | | File to download (zip, GeoPackage, GeoJSON, CSV, Shapefile) |
-| `resource` | no, `ckan` only | the best loadable file | Which file of the package: a resource ID or name, as `discover` lists them. Packages often hold the same data in several formats, or several files |
+| `resource` | no; `ckan`, `ogc-api-records` and `csw` | the best loadable file | Which file of the package or record: a CKAN resource ID or name, or a record link's title or address, as `discover` lists them. Packages often hold the same data in several formats, or several files |
 | `update` | no | `manual` | When `sync` checks for a new version |
 | `tables` | no | every layer in the file | Which layers of the downloaded file to load, and as what. A service's one layer is named as `discover` lists it (an ArcGIS layer by its name, `Rivers`) |
 | `tables.<layer>.name` | no | `<dataset>_<layer>` with dashes as underscores | Table name in the live schema |

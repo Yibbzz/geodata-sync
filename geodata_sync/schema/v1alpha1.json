@@ -194,7 +194,9 @@
             "ogc-api-features",
             "wfs",
             "arcgis",
-            "stac"
+            "stac",
+            "ogc-api-records",
+            "csw"
           ]
         },
         "credentials": {
@@ -203,7 +205,7 @@
         "url": {
           "type": "string",
           "pattern": "^https?://",
-          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, or a STAC API"
+          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, or a catalogue (OGC API Records, CSW)"
         }
       }
     },
@@ -224,7 +226,7 @@
         "resource": {
           "type": "string",
           "minLength": 1,
-          "description": "Which download of a CKAN package to load: a resource ID or name"
+          "description": "Which download of a CKAN package, or link of a catalogue record, to load: its ID, name or address"
         },
         "url": {
           "type": "string",
