@@ -17,11 +17,12 @@ from jsonschema.exceptions import best_match
 from .loader import Problem, Project, Resource, default_table
 
 SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis", "stac", "ogc-api-records", "csw",
-                         "socrata", "opendatasoft", "overture", "geofabrik"}
+                         "socrata", "opendatasoft", "overture", "geofabrik", "koordinates"}
 SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads", "overture", "geofabrik"}
 SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture", "geofabrik"}  # a mirror
 SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw", "geofabrik"}  # products with several downloads to pick from  # need the Source's spec.url
-SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft"}  # send the credentials secret's apiKey; the others send nothing
+SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft", "koordinates"}
+SOURCES_NEEDING_KEYS = {"koordinates"}  # send the credentials secret's apiKey; the others send nothing
 
 
 def schema() -> dict:
@@ -128,6 +129,9 @@ def check_references(project: Project) -> list[Problem]:
             problems.append(Problem(s.file, s.line(("spec",)), f"spec.url: a {kind} source needs its address, e.g. https://data.gov.uk", s.label))
         if kind not in SOURCES_WITH_ADDRESSES | SOURCES_WITH_OPTIONAL_ADDRESSES and s.spec.get("url"):
             problems.append(Problem(s.file, s.line(("spec", "url")), f"spec.url: not used by a {kind} source", s.label))
+        if kind in SOURCES_NEEDING_KEYS and not s.spec.get("credentials"):
+            problems.append(Problem(s.file, s.line(("spec",)), f"spec.credentials: a {kind} source needs an API key: "
+                                    "credentials: { secret: <name> }, with key apiKey", s.label))
         if kind not in SOURCES_WITH_KEYS and s.spec.get("credentials"):
             problems.append(Problem(s.file, s.line(("spec", "credentials")),
                                     f"spec.credentials: a {kind} source sends no credentials, so a service that needs them "

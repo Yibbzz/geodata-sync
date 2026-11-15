@@ -200,7 +200,8 @@
             "socrata",
             "opendatasoft",
             "overture",
-            "geofabrik"
+            "geofabrik",
+            "koordinates"
           ]
         },
         "credentials": {
@@ -209,7 +210,7 @@
         "url": {
           "type": "string",
           "pattern": "^https?://",
-          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, a catalogue (OGC API Records, CSW), or a Socrata or OpenDataSoft portal"
+          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, a catalogue (OGC API Records, CSW), a Socrata, OpenDataSoft or Koordinates portal"
         }
       }
     },
