@@ -4,9 +4,13 @@
 
 <p align="center">The data GeoServer publishes, loaded into PostGIS and kept up to date, from YAML files.<br>For <a href="https://github.com/geoserver/geoserver-cloud">GeoServer Cloud</a> and standard GeoServer, beside <a href="https://github.com/Yibbzz/geoserver-configops">GeoServer ConfigOps</a>.</p>
 
-<!-- badges -->![GeoServer Cloud 3.0.2.1](https://img.shields.io/badge/GeoServer_Cloud-3.0.2.1-brightgreen) ![GeoServer 3.0.2](https://img.shields.io/badge/GeoServer-3.0.2-brightgreen) ![GeoServer 2.28.6](https://img.shields.io/badge/GeoServer-2.28.6-brightgreen) ![PostGIS 18-3.7](https://img.shields.io/badge/PostGIS-18--3.7-blue)<!-- /badges -->
+<!-- badges -->
+![GeoServer Cloud 3.0.2.1](https://img.shields.io/badge/GeoServer_Cloud-3.0.2.1-brightgreen) ![GeoServer 3.0.2](https://img.shields.io/badge/GeoServer-3.0.2-brightgreen) ![GeoServer 2.28.6](https://img.shields.io/badge/GeoServer-2.28.6-brightgreen) ![PostGIS 18-3.7](https://img.shields.io/badge/PostGIS-18--3.7-blue)
+<!-- /badges -->
 
-<!-- tested-on -->Tested on **GeoServer Cloud 3.0.2.1**, **GeoServer 3.0.2** and **GeoServer 2.28.6**, with **PostGIS 18-3.7**: on every pull request each one publishes what `dataops sync` loaded and serves it back, before and after a reload, and a daily job (`.github/workflows/versions.yaml`) tries each new release.<!-- /tested-on -->
+<!-- tested-on -->
+Tested on **GeoServer Cloud 3.0.2.1**, **GeoServer 3.0.2** and **GeoServer 2.28.6**, with **PostGIS 18-3.7**: on every pull request each one publishes what `dataops sync` loaded and serves it back, before and after a reload, and a daily job (`.github/workflows/versions.yaml`) tries each new release.
+<!-- /tested-on -->
 
 `dataops` keeps the open datasets you name in PostGIS, each at its newest version:
 

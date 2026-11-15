@@ -25,6 +25,8 @@ from pathlib import Path
 ROOT = Path(os.environ.get("VERSIONS_ROOT") or Path(__file__).resolve().parent.parent)
 UP = "tests/e2e/up.sh"
 README = "README.md"
+# Each marker on a line of its own: on GitHub a line that starts with <!-- is HTML, and Markdown in the
+# rest of it (the badges' images, the bold) would show as it is written
 TESTED = re.compile(r"<!-- tested-on -->.*?<!-- /tested-on -->", re.S)
 BADGES = re.compile(r"<!-- badges -->.*?<!-- /badges -->", re.S)
 SERIES_2 = "2.28"
@@ -89,16 +91,16 @@ def shield(label: str, version: str, colour: str = "brightgreen") -> str:
 
 
 def badges(v: dict[str, str]) -> str:
-    return ("<!-- badges -->" + " ".join([
+    return ("<!-- badges -->\n" + " ".join([
         shield("GeoServer Cloud", v["cloud"]), shield("GeoServer", v["standard"]), shield("GeoServer", v["standard-2"]),
-        shield("PostGIS", v["postgis"], "blue")]) + "<!-- /badges -->")
+        shield("PostGIS", v["postgis"], "blue")]) + "\n<!-- /badges -->")
 
 
 def tested_line(v: dict[str, str]) -> str:
-    return (f"<!-- tested-on -->Tested on **GeoServer Cloud {v['cloud']}**, **GeoServer {v['standard']}** and "
+    return (f"<!-- tested-on -->\nTested on **GeoServer Cloud {v['cloud']}**, **GeoServer {v['standard']}** and "
             f"**GeoServer {v['standard-2']}**, with **PostGIS {v['postgis']}**: on every pull request each one "
             "publishes what `dataops sync` loaded and serves it back, before and after a reload, and a daily job "
-            "(`.github/workflows/versions.yaml`) tries each new release.<!-- /tested-on -->")
+            "(`.github/workflows/versions.yaml`) tries each new release.\n<!-- /tested-on -->")
 
 
 def sub(path: str, pattern: str, new: str) -> None:
