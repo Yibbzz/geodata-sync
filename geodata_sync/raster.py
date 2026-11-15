@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import zipfile
@@ -109,7 +110,9 @@ def install(new: Path, path: str, keep: int) -> None:
         backups = data_root() / BACKUPS / Path(path).parent
         backups.mkdir(parents=True, exist_ok=True)
         os.replace(live, backups / f"{live.stem}.{stamp()}{live.suffix}")
-        old = sorted(backups.glob(f"{live.stem}.*{live.suffix}"))
+        # only this file's backups, <stem>.<timestamp><suffix>: terrain.coarse.<timestamp>.tif is another dataset's
+        own = re.compile(re.escape(live.stem) + r"\.[0-9][0-9_]*" + re.escape(live.suffix))
+        old = sorted(p for p in backups.iterdir() if own.fullmatch(p.name))
         for extra in old[:-keep] if keep else old:
             extra.unlink()
     os.replace(new, live)
