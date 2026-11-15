@@ -226,3 +226,26 @@ def test_a_single_file_keeps_its_name_so_its_layer_does(tmp_path, schemas, env, 
         assert "squares" in tables_in(schemas[0])
     finally:
         httpd.shutdown()
+
+
+def test_a_download_that_is_really_a_gdal_vrt_is_not_opened(tmp_path, schemas, env, capsys):
+    """GDAL picks a driver by content: a VRT named .geojson could read any local file into a table."""
+    live = schemas[0]
+    www = tmp_path / "www"
+    www.mkdir()
+    secret = tmp_path / "password"
+    secret.write_text("name\nhunter2\n")
+    (www / "parks.geojson").write_text(
+        f'<OGRVRTDataSource><OGRVRTLayer name="parks"><SrcDataSource>CSV:{secret}</SrcDataSource>'
+        "<SrcLayer>password</SrcLayer></OGRVRTLayer></OGRVRTDataSource>")
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(www))
+    handler.log_message = lambda *a: None
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    try:
+        root = project(tmp_path, f"http://127.0.0.1:{httpd.server_address[1]}/parks.geojson", schemas)
+        assert sync(root) == 1
+    finally:
+        httpd.shutdown()
+    assert "couldn't read parks.geojson" in capsys.readouterr().err
+    assert tables_in(live) == []

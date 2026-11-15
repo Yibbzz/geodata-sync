@@ -14,6 +14,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 import uuid
 import zipfile
 from dataclasses import dataclass, field
@@ -21,6 +22,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import psycopg2
+import psycopg2.errors
 import requests
 
 from . import remote
@@ -47,7 +49,14 @@ CREATE TABLE IF NOT EXISTS {LOG_TABLE} (
     finished_at     TIMESTAMP
 );
 ALTER TABLE {LOG_TABLE} ADD COLUMN IF NOT EXISTS tables TEXT;
+-- every run and `geodata status` look up each dataset's latest rows
+CREATE INDEX IF NOT EXISTS os_ingest_log_dataset_started ON {LOG_TABLE} (dataset_id, started_at);
 """
+
+
+# Most a download may unpack to, so a zip bomb can't fill the disk (GEODATA_MAX_UNPACKED_BYTES overrides)
+MAX_UNPACKED = 100 * 1000**3
+MAX_UNPACKED_ENV = "GEODATA_MAX_UNPACKED_BYTES"
 
 
 class LoadError(Exception):
@@ -209,19 +218,52 @@ def tables_exist(conn, schema: str, tables: list[str]) -> bool:
 # --- getting the data
 
 
+# A connection lost part way through a download is tried again, from where it stopped when the
+# server can send part of a file: one dropped connection shouldn't cost a night's load of a large product
+DOWNLOAD_ATTEMPTS = 4
+DOWNLOAD_PAUSE = 10  # seconds, times the attempt
+DROPPED = (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError)
+
+
 def download(url: str, dest: Path, md5: str | None = None, session: requests.Session | None = None) -> str:
     """Stream `url` to `dest`; check the MD5 when the source gives one; return the SHA256."""
-    sha, md5sum = hashlib.sha256(), hashlib.md5()
-    with (session or requests).get(url, stream=True, timeout=TIMEOUT) as r:
-        r.raise_for_status()
-        with open(dest, "wb") as f:
-            for chunk in r.iter_content(1 << 20):
-                f.write(chunk)
-                sha.update(chunk)
-                md5sum.update(chunk)
+    sha, md5sum, written = hashlib.sha256(), hashlib.md5(), 0
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        try:
+            headers = {"Range": f"bytes={written}-"} if written else {}
+            with (session or requests).get(url, stream=True, timeout=TIMEOUT, headers=headers) as r:
+                r.raise_for_status()
+                resumed = bool(written) and r.status_code == 206 and \
+                    r.headers.get("Content-Range", "").startswith(f"bytes {written}-")
+                if not resumed:  # from the start: the first try, or a server that sends whole files only
+                    sha, md5sum, written = hashlib.sha256(), hashlib.md5(), 0
+                with open(dest, "ab" if resumed else "wb") as f:
+                    for chunk in r.iter_content(1 << 20):
+                        f.write(chunk)
+                        sha.update(chunk)
+                        md5sum.update(chunk)
+                        written += len(chunk)
+            break
+        except DROPPED:
+            if attempt == DOWNLOAD_ATTEMPTS:
+                raise
+            time.sleep(DOWNLOAD_PAUSE * attempt)
     if md5 and md5sum.hexdigest().lower() != md5.lower():
         raise LoadError(f"the download's MD5 is {md5sum.hexdigest()}, not {md5} as the source says; try again later")
     return sha.hexdigest()
+
+
+def unpack_limit() -> int:
+    value = os.environ.get(MAX_UNPACKED_ENV, "")
+    return int(value) if value.isdigit() else MAX_UNPACKED
+
+
+def check_unpacked_size(size: int) -> None:
+    """Refuse an archive that would unpack to more than the limit. A zip's entries can't unpack to
+    more than the sizes it declares (zipfile stops there), so their sum is a true upper bound."""
+    if size > unpack_limit():
+        raise LoadError(f"the download would unpack to {size:,} bytes, more than the limit of {unpack_limit():,}; "
+                        f"if that is right for this dataset, raise {MAX_UNPACKED_ENV}")
 
 
 def file_layers(path: Path, work: Path) -> list[tuple[str, str, str | None]]:
@@ -229,6 +271,7 @@ def file_layers(path: Path, work: Path) -> list[tuple[str, str, str | None]]:
     if zipfile.is_zipfile(path):
         out = work / "extracted"
         with zipfile.ZipFile(path) as z:
+            check_unpacked_size(sum(i.file_size for i in z.infolist()))
             z.extractall(out)
             files = [str(out / f) for f in remote.data_files([i.filename for i in z.infolist() if not i.is_dir()])]
         if not files:
@@ -269,7 +312,7 @@ def load(db: Database, layer: Layer, staging: str) -> str:
     if shutil.which("ogr2ogr") is None:
         raise LoadError("loading needs GDAL's ogr2ogr on the PATH")
     cmd = [
-        "ogr2ogr", "-f", "PostgreSQL", db.ogr_target(), layer.source, layer.layer,
+        "ogr2ogr", "-f", "PostgreSQL", *remote.input_drivers(layer.source), db.ogr_target(), layer.source, layer.layer,
         "-nln", f"{db.staging}.{staging}",
         "-lco", "GEOMETRY_NAME=geom", "-lco", "PRECISION=NO",
         "-nlt", "PROMOTE_TO_MULTI", "-gt", "65536",
@@ -315,21 +358,91 @@ def check(conn, db: Database, staged: Staged, drop_invalid: bool, min_rows: int)
     conn.commit()
 
 
-def swap(conn, db: Database, staged: list[Staged], keep: int) -> None:
-    """In one transaction: each live table to the backup schema, each staged table into its place."""
+LOCK_TIMEOUT = "10s"  # how long a swap waits for readers of the live table before stepping back
+LOCK_ATTEMPTS = 6
+LOCK_PAUSE = 5  # seconds between attempts
+
+
+def dependent_views(cur, table: str) -> list[tuple[int, str, str, str, list[str]]]:
+    """(oid, kind, name, definition, options) of the views that read `table` ("schema"."table") directly.
+    Call with an empty search_path, so the names and definitions come fully qualified."""
+    cur.execute(
+        "SELECT DISTINCT v.oid, v.relkind, v.oid::regclass::text, pg_get_viewdef(v.oid), coalesce(v.reloptions, '{}') "
+        "FROM pg_depend d JOIN pg_rewrite r ON r.oid = d.objid JOIN pg_class v ON v.oid = r.ev_class "
+        "WHERE d.classid = 'pg_rewrite'::regclass AND d.refclassid = 'pg_class'::regclass "
+        "AND d.refobjid = to_regclass(%s) AND v.oid <> d.refobjid ORDER BY v.oid", (table,))
+    return cur.fetchall()
+
+
+def copy_grants(cur, old: str, new: str) -> None:
+    """Give `new` the privileges granted on `old`: a table ogr2ogr just made has only its owner's."""
+    cur.execute(
+        "SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE a.grantee::regrole::text END, a.privilege_type, a.is_grantable "
+        "FROM pg_class c, aclexplode(c.relacl) a WHERE c.oid = to_regclass(%s) AND a.grantee <> c.relowner", (old,))
+    for role, privilege, grantable in cur.fetchall():
+        cur.execute(f"GRANT {privilege} ON {new} TO {role}" + (" WITH GRANT OPTION" if grantable else ""))
+
+
+def swap_once(conn, db: Database, staged: list[Staged]) -> None:
     with conn.cursor() as cur:
+        # an empty search_path makes PostgreSQL write view definitions with every name qualified
+        cur.execute("SET LOCAL search_path = ''")
+        cur.execute("SET LOCAL lock_timeout = %s", (LOCK_TIMEOUT,))
+        views: dict[int, tuple[str, str, list[str]]] = {}
+        for s in staged:
+            live = f'"{db.live}"."{s.layer.table}"'
+            for oid, kind, name, definition, options in dependent_views(cur, live):
+                if kind != "v":
+                    raise LoadError(
+                        f"materialized view {name} reads {db.live}.{s.layer.table}, and can't be moved onto the new table: "
+                        "it would go on reading the old one. Drop it before the load and create it again after; "
+                        "the live table is unchanged")
+                views[oid] = (name, definition, options)
         for s in staged:
             table = s.layer.table
             cur.execute("SELECT to_regclass(%s)", (f'"{db.live}"."{table}"',))
             if cur.fetchone()[0] is not None:
+                copy_grants(cur, f'"{db.live}"."{table}"', f'"{db.staging}"."{s.staging}"')
                 backup = free_backup_name(cur, db, table)
                 cur.execute(f'ALTER TABLE "{db.live}"."{table}" RENAME TO "{backup}"')
                 cur.execute(f'ALTER TABLE "{db.live}"."{backup}" SET SCHEMA "{db.backup}"')
             cur.execute(f'ALTER TABLE "{db.staging}"."{s.staging}" SET SCHEMA "{db.live}"')
             cur.execute(f'ALTER TABLE "{db.live}"."{s.staging}" RENAME TO "{table}"')
+        # A view is tied to the table it was made on, not to its name: left alone it would follow the
+        # old table into the backups and serve old data. Its definition, taken before the renames,
+        # names the live table, so replacing the view with it points it at the new one; the view
+        # keeps its owner and grants.
+        for name, definition, options in views.values():
+            with_options = f" WITH ({', '.join(options)})" if options else ""
+            try:
+                cur.execute(f"CREATE OR REPLACE VIEW {name}{with_options} AS {definition}")
+            except psycopg2.errors.LockNotAvailable:
+                raise
+            except psycopg2.Error as e:
+                raise LoadError(f"view {name} can't be moved onto the new table ({str(e).strip().splitlines()[0]}); "
+                                "the live table is unchanged") from None
     conn.commit()
+
+
+def swap(conn, db: Database, staged: list[Staged], keep: int) -> None:
+    """In one transaction: each live table to the backup schema, each staged table into its place,
+    with the old table's grants and the views that read it."""
+    for attempt in range(1, LOCK_ATTEMPTS + 1):
+        try:
+            swap_once(conn, db, staged)
+            break
+        except psycopg2.errors.LockNotAvailable:
+            # Waiting on behind a long query would hold up every other reader of the table too
+            conn.rollback()
+            if attempt == LOCK_ATTEMPTS:
+                raise LoadError(f"the live tables stayed in use for {LOCK_ATTEMPTS} tries of {LOCK_TIMEOUT}; "
+                                "they are unchanged, and the next run tries again") from None
+            time.sleep(LOCK_PAUSE)
     for s in staged:
-        prune(conn, db, s.layer.table, keep)
+        # the new data is live: a backup that can't be dropped mustn't make the load a failure
+        problem = prune(conn, db, s.layer.table, keep)
+        if problem:
+            s.note = "; ".join(x for x in (s.note, problem) if x)
 
 
 def free_backup_name(cur, db: Database, table: str) -> str:
@@ -343,9 +456,10 @@ def free_backup_name(cur, db: Database, table: str) -> str:
         when += timedelta(seconds=1)
 
 
-def prune(conn, db: Database, table: str, keep: int) -> None:
-    """Drop all but the newest `keep` backups of a table."""
+def prune(conn, db: Database, table: str, keep: int) -> str:
+    """Drop all but the newest `keep` backups of a table; returns what couldn't be dropped, or ""."""
     prefix = table[: 62 - len("YYYYmmdd_HHMMSS")]
+    kept = []
     with conn.cursor() as cur:
         cur.execute(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = %s AND table_name ~ %s "
@@ -353,8 +467,14 @@ def prune(conn, db: Database, table: str, keep: int) -> None:
             (db.backup, f"^{prefix}_[0-9]{{8}}_[0-9]{{6}}$"),
         )
         for (old,) in cur.fetchall()[keep:]:
-            cur.execute(f'DROP TABLE "{db.backup}"."{old}"')
+            try:
+                cur.execute("SAVEPOINT prune")
+                cur.execute(f'DROP TABLE "{db.backup}"."{old}"')
+            except psycopg2.Error as e:
+                cur.execute("ROLLBACK TO SAVEPOINT prune")
+                kept.append(f"old backup {db.backup}.{old} was kept: {str(e).strip().splitlines()[0]}")
     conn.commit()
+    return "; ".join(kept)
 
 
 def drop_staged(conn, db: Database, staged: list[Staged]) -> None:
@@ -377,6 +497,9 @@ def load_all(conn, db: Database, layers: list[Layer], drop_invalid: bool = True,
             check(conn, db, s, drop_invalid, min_rows)
         swap(conn, db, staged, keep)
     except BaseException:
-        drop_staged(conn, db, staged)
+        try:
+            drop_staged(conn, db, staged)
+        except psycopg2.Error:
+            pass  # the connection is gone: let the error that got us here be the one reported
         raise
     return staged
