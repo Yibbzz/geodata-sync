@@ -4,11 +4,11 @@ import shutil
 
 import pytest
 
-from geodata_sync.cli import main
-from geodata_sync.loader import load
-from geodata_sync.sources import NotFound, SourceError
-from geodata_sync.sources.stac import MAX_ITEMS, STAC, md5_of
-from geodata_sync.validate import validate
+from geoserver_dataops.cli import main
+from geoserver_dataops.loader import load
+from geoserver_dataops.sources import NotFound, SourceError
+from geoserver_dataops.sources.stac import MAX_ITEMS, STAC, md5_of
+from geoserver_dataops.validate import validate
 from fake_stac import STACServer
 
 pytestmark = pytest.mark.skipif(shutil.which("gdal_translate") is None, reason="GDAL's command-line tools not installed")
@@ -61,7 +61,7 @@ def test_what_cant_be_selected_says_why(server, options, message):
 
 
 def test_too_many_items_asks_for_a_smaller_area(server, monkeypatch):
-    import geodata_sync.sources.stac as stac
+    import geoserver_dataops.sources.stac as stac
     monkeypatch.setattr(stac, "MAX_ITEMS", 2)
     with pytest.raises(SourceError, match="more than 2 items"):
         STAC(url=server.url).selection("dem", EVERYTHING)
@@ -90,27 +90,27 @@ def test_discover_lists_a_collections_assets(server, capsys, tmp_path):
 
 def test_validate_asks_a_stac_dataset_for_its_selection_and_raster(tmp_path):
     (tmp_path / "p.yaml").write_text("""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: { name: t }
 spec: { database: { connection: { secret: pg } } }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: { name: es }
 spec: { type: stac, url: "https://earth-search.example/v1" }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: { name: dem }
 spec: { source: es, product: cop-dem-glo-30 }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: { name: web }
 spec: { type: url }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: { name: other }
 spec: { source: web, url: "https://x.example/a.zip", stac: { bbox: [0, 0, 1], asset: data } }

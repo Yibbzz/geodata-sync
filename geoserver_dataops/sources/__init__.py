@@ -46,7 +46,7 @@ class Download:
     subformat: str = ""
     id: str = ""  # the provider's ID for this download (a CKAN resource ID)
     name: str = ""  # the provider's title for it
-    loadable: bool = True  # False for links geodata can't load (web pages, map images)
+    loadable: bool = True  # False for links dataops can't load (web pages, map images)
     service: bool = False  # a feature service (WFS, OGC API Features), not a file
 
     def to_dict(self) -> dict:

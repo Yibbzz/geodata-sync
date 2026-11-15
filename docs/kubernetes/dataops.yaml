@@ -1,11 +1,11 @@
-# geodata in Kubernetes: a nightly CronJob that loads what's new (docs/kubernetes.md explains it).
-# The first container runs `geodata sync` and lists what it loaded; the second runs
+# dataops in Kubernetes: a nightly CronJob that loads what's new (docs/kubernetes.md explains it).
+# The first container runs `dataops sync` and lists what it loaded; the second runs
 # `configops refresh` on that list, so GeoServer's layers on the new data get their new bounds
 # and lose their old cached tiles. Leave the second out if nothing publishes the tables.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: geodata-sync
+  name: geoserver-dataops
 spec:
   schedule: "0 2 * * *"
   concurrencyPolicy: Forbid  # never two loads at once
@@ -25,9 +25,9 @@ spec:
           securityContext: { runAsNonRoot: true, runAsUser: 65534, seccompProfile: { type: RuntimeDefault } }
           initContainers:
             - name: sync
-              image: registry.example.org/my-data-geodata:1  # docs/kubernetes/Dockerfile: geodata with your data project
+              image: registry.example.org/my-data-dataops:1  # docs/kubernetes/Dockerfile: dataops with your data project
               # a failed dataset doesn't stop the refresh of those that loaded; the Job fails afterwards
-              command: ["sh", "-c", "geodata sync -C /project --loaded /work/loaded.txt || touch /work/failed"]
+              command: ["sh", "-c", "dataops sync -C /project --loaded /work/loaded.txt || touch /work/failed"]
               # it reads files from the internet: no extra privileges, and nothing writable but /work and /tmp
               securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
               resources:
@@ -36,7 +36,7 @@ spec:
               volumeMounts:
                 - { name: work, mountPath: /work }
                 - { name: tmp, mountPath: /tmp }  # downloads are unpacked here
-                - { name: database, mountPath: /etc/geodata/secrets/database, readOnly: true }
+                - { name: database, mountPath: /etc/dataops/secrets/database, readOnly: true }
           containers:
             - name: refresh
               image: registry.example.org/my-project-configops:1  # configops with your GeoServer project

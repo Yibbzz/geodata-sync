@@ -236,7 +236,7 @@ def url_layers(url: str, session: requests.Session | None = None, file_name: str
             if e.size is not None and e.size > MAX_DOWNLOAD:
                 raise RemoteError(f"{e}, and the file is too large to fetch whole for a look ({e.size:,} bytes)") from None
             print("The server sends whole files only; downloading it to a temporary folder to read it...", file=sys.stderr)
-            with tempfile.TemporaryDirectory(prefix="geodata-") as tmp:
+            with tempfile.TemporaryDirectory(prefix="dataops-") as tmp:
                 suffix = Path(file_name or urlparse(url).path).suffix
                 path = fetch(url, session, Path(tmp) / f"download{suffix}")
                 with open(path, "rb") as f:

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Yibbzz/geodata-sync/geodata_sync/schema/v1alpha1.json",
-  "title": "geodata resource (v1alpha1)",
-  "description": "One resource of a geodata project: docs/spec.md",
+  "$id": "https://github.com/Yibbzz/geoserver-dataops/geoserver_dataops/schema/v1alpha1.json",
+  "title": "dataops resource (v1alpha1)",
+  "description": "One resource of a dataops project: docs/spec.md",
   "type": "object",
   "required": [
     "apiVersion",
@@ -13,7 +13,7 @@
   "additionalProperties": false,
   "properties": {
     "apiVersion": {
-      "const": "geodata/v1alpha1"
+      "const": "dataops/v1alpha1"
     },
     "kind": {
       "enum": [
@@ -309,7 +309,7 @@
             "asset": {
               "type": "string",
               "minLength": 1,
-              "description": "which file of each item, by its key: `geodata discover` lists them"
+              "description": "which file of each item, by its key: `dataops discover` lists them"
             },
             "datetime": {
               "type": "string",

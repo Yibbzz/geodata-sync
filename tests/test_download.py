@@ -7,7 +7,7 @@ import threading
 import pytest
 import requests
 
-from geodata_sync import ingest
+from geoserver_dataops import ingest
 
 DATA = bytes(range(256)) * 4096 * 4  # 4 MiB: it drops after 2, a whole read of 1 MiB or more
 

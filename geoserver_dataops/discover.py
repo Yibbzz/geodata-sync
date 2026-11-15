@@ -1,4 +1,4 @@
-"""`geodata discover`: what a source offers, and the layers inside one product."""
+"""`dataops discover`: what a source offers, and the layers inside one product."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def resolve(name: str, root: Path, url: str | None = None) -> ResolvedSource:
             api_key = secrets.lookup(secret, API_KEY, root)
             if api_key is None:
                 print(
-                    f"geodata: note: secret {secret} (key {API_KEY}) isn't set "
+                    f"dataops: note: secret {secret} (key {API_KEY}) isn't set "
                     f"(${secrets.env_name(secret, API_KEY)} or secrets.yaml); trying without a key",
                     file=sys.stderr,
                 )
@@ -72,9 +72,9 @@ def resolve(name: str, root: Path, url: str | None = None) -> ResolvedSource:
 def command(name: str, c, url: str | None) -> str:
     """How to run discover on this source again: with its tidied address when one was given."""
     if not url:
-        return f"geodata discover {name}"
+        return f"dataops discover {name}"
     address = getattr(c, "url", None) or getattr(c, "portal", None) or url
-    return f"geodata discover {name} --url {shlex.quote(address)}"
+    return f"dataops discover {name} --url {shlex.quote(address)}"
 
 
 def client(source_type: type, api_key: str | None, url: str | None):
@@ -89,7 +89,7 @@ def client(source_type: type, api_key: str | None, url: str | None):
 
 def cache_dir() -> Path:
     base = os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache"
-    return Path(base) / "geodata" / "layers"
+    return Path(base) / "dataops" / "layers"
 
 
 def cache_path(source_type: str, product: Product) -> Path | None:
@@ -186,7 +186,7 @@ def print_products(src: ResolvedSource, products: list[Product], total: int | No
     skipped = sum(1 for p in products if not p.loads_as) - services
     shown = f"{len(products)} of {total:,}" if total and total > len(products) else f"{len(products)}"
     print(f"\n{shown} product{'s' if len(products) != 1 or total != 1 else ''} from {src.label}" + (f" matching '{search}'" if search else ""), end="")
-    print(f"; {skipped} have nothing geodata can load" if skipped else "")
+    print(f"; {skipped} have nothing dataops can load" if skipped else "")
     if services:
         print(f"{services} offer only a WFS or OGC API service: the product's details show how to discover it")
     if total and total > len(products):
@@ -204,10 +204,10 @@ def download_line(d: Download, used: bool) -> str:
     elif d.format in SERVICE_TYPES:
         line += " (a service, not a file)"
     else:
-        line += " (not a file geodata loads)"
+        line += " (not a file dataops loads)"
     line += f"  [{d.id}]" if d.id else ""
     if not d.loadable and d.format in SERVICE_TYPES:
-        line += f"\n        discover it: geodata discover {SERVICE_TYPES[d.format]} --url {shlex.quote(service_address(d.format, d.url))}"
+        line += f"\n        discover it: dataops discover {SERVICE_TYPES[d.format]} --url {shlex.quote(service_address(d.format, d.url))}"
     return line
 
 
@@ -248,7 +248,7 @@ def print_product(src: ResolvedSource, p: Product, layers: list[remote.Layer] | 
         print("\nNo downloads listed.")
         return
     if p.chosen is None:
-        print(f"\nNo download geodata can load (it reads {', '.join(src.client.formats)} as one file).")
+        print(f"\nNo download dataops can load (it reads {', '.join(src.client.formats)} as one file).")
         return
     print("  (* the download sync uses)")
     if sum(1 for d in p.downloads if d.loadable) > 1 and p.chosen.id:
@@ -318,6 +318,6 @@ def run(
     else:
         print_product(src, product, found)
     if layer_error:
-        print(f"geodata discover: {layer_error}", file=sys.stderr)
+        print(f"dataops discover: {layer_error}", file=sys.stderr)
         return 1
     return 0

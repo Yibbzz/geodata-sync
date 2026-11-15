@@ -126,7 +126,7 @@ class CKAN:
                 names = ", ".join(d.name or d.id for d in product.downloads)
                 raise SourceError(f"{product.id} has no resource '{resource}' (its resources: {names})")
             if not picked[0].loadable:
-                raise SourceError(f"resource '{resource}' is {picked[0].format}, not a file geodata can load")
+                raise SourceError(f"resource '{resource}' is {picked[0].format}, not a file dataops can load")
             product.chosen = picked[0]
             product.loads_as = picked[0].format
         return product

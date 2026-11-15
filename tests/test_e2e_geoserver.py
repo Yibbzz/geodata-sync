@@ -1,4 +1,4 @@
-"""What geodata-sync loads, as GeoServer serves it: GeoServer Cloud and standard GeoServer, started by
+"""What geoserver-dataops loads, as GeoServer serves it: GeoServer Cloud and standard GeoServer, started by
 tests/e2e/up.sh. A table and a raster are loaded, published through GeoServer's REST API, and read back
 through WFS and WCS; then new versions are loaded under the running GeoServer and read back again,
 after the refresh `configops refresh` does (a raster store's reset, the bounds worked out again).
@@ -21,7 +21,7 @@ import psycopg2
 import pytest
 import requests
 
-from geodata_sync.cli import main
+from geoserver_dataops.cli import main
 
 pytestmark = pytest.mark.e2e
 
@@ -36,8 +36,8 @@ AUTH = (os.environ.get("E2E_GEOSERVER_USER", "admin"), os.environ.get("E2E_GEOSE
 DB = dict(host="localhost", port=int(os.environ.get("E2E_DB_PORT", "55433")), dbname="postgres", user="postgres", password="postgres")
 DB_IN_GEOSERVER = os.environ.get("E2E_DB_HOST_IN_GEOSERVER", "db")
 DATA = os.path.abspath(os.environ.get("E2E_DATA_DIR", "tests/e2e/data"))
-WS, LIVE = "geodata_e2e", "geodata_e2e"
-RASTER = "geodata-e2e/dtm.tif"  # under the data folder: /data/geodata-e2e/dtm.tif to GeoServer
+WS, LIVE = "dataops_e2e", "dataops_e2e"
+RASTER = "dataops-e2e/dtm.tif"  # under the data folder: /data/dataops-e2e/dtm.tif to GeoServer
 
 
 def points(names):
@@ -65,7 +65,7 @@ def publish_files(www, names, values):
 
 def project(root, base):
     (root / "project.yaml").write_text(f"""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: {{ name: e2e }}
 spec:
@@ -74,17 +74,17 @@ spec:
     schemas: {{ live: {LIVE}, staging: {LIVE}_staging, backup: {LIVE}_backup }}
   backups: 1
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: web }}
 spec: {{ type: url }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: sites }}
 spec: {{ source: web, url: "{base}/sites.gpkg" }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: dtm }}
 spec:
@@ -156,16 +156,16 @@ def setup(tmp_path, monkeypatch):
         cur.execute("SELECT to_regclass('public.os_ingest_log')")
         if cur.fetchone()[0]:
             cur.execute("DELETE FROM public.os_ingest_log WHERE dataset_id IN ('sites', 'dtm')")
-    shutil.rmtree(os.path.join(DATA, "geodata-e2e"), ignore_errors=True)
-    monkeypatch.setenv("GEODATA_DATA_DIR", DATA)
+    shutil.rmtree(os.path.join(DATA, "dataops-e2e"), ignore_errors=True)
+    monkeypatch.setenv("DATAOPS_DATA_DIR", DATA)
     for key, value in {"HOST": "localhost", "PORT": str(DB["port"]), "DATABASE": "postgres",
                        "USERNAME": "postgres", "PASSWORD": "postgres"}.items():
-        monkeypatch.setenv(f"GEODATA_E2EDB_{key}", value)
+        monkeypatch.setenv(f"DATAOPS_E2EDB_{key}", value)
     yield www, f"http://127.0.0.1:{httpd.server_address[1]}"
     httpd.shutdown()
 
 
-def test_geoserver_serves_what_geodata_loads_and_reloads(setup, tmp_path, capsys):
+def test_geoserver_serves_what_dataops_loads_and_reloads(setup, tmp_path, capsys):
     www, base = setup
     root = tmp_path / "project"
     root.mkdir()

@@ -1,25 +1,25 @@
-"""Raster Datasets (geodata_sync/raster.py): unpacking, mosaicking into a COG, swapping in, backups."""
+"""Raster Datasets (geoserver_dataops/raster.py): unpacking, mosaicking into a COG, swapping in, backups."""
 
 import shutil
 import zipfile
 
 import pytest
 
-from geodata_sync import raster
-from geodata_sync.ingest import LoadError
-from geodata_sync.loader import load
-from geodata_sync.validate import validate
+from geoserver_dataops import raster
+from geoserver_dataops.ingest import LoadError
+from geoserver_dataops.loader import load
+from geoserver_dataops.validate import validate
 
 pytestmark = pytest.mark.skipif(shutil.which("gdalbuildvrt") is None, reason="GDAL's command-line tools not installed")
 
 PROJECT = """\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: { name: t }
 spec:
   database: { connection: { secret: pg } }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: { name: os }
 spec: { type: os-downloads }
@@ -117,17 +117,17 @@ def test_a_zip_without_rasters(tmp_path):
 
 def test_validate_raster_datasets(tmp_path):
     (tmp_path / "project.yaml").write_text(PROJECT + """---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: { name: both }
 spec: { source: os, product: X, tables: { a: {} }, raster: { path: a.tif } }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: { name: heights }
 spec: { source: os, product: Terrain50, raster: { path: a.tif } }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: { name: roads }
 spec: { source: os, product: OpenRoads, tables: { road_link: {} } }
@@ -165,6 +165,6 @@ def test_zips_nested_too_deep_or_unpacking_too_large(tmp_path, monkeypatch):
     bomb = tmp_path / "bomb.zip"
     with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("big.asc", "0 " * 500_000)
-    monkeypatch.setenv("GEODATA_MAX_UNPACKED_BYTES", "100000")
+    monkeypatch.setenv("DATAOPS_MAX_UNPACKED_BYTES", "100000")
     with pytest.raises(LoadError, match="more than the limit of 100,000"):
         raster.unpack(bomb, tmp_path / "bomb")

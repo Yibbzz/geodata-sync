@@ -1,4 +1,4 @@
-"""`geodata sync`: load new versions of the project's datasets into PostGIS.
+"""`dataops sync`: load new versions of the project's datasets into PostGIS.
 
 For each Dataset that is due (or named on the command line): ask its
 source for the current version, and if it is new (or a table is missing,
@@ -69,7 +69,7 @@ def plan_layers(dataset: Resource, found: list[tuple[str, str, str | None]], pro
         if missing:
             raise ingest.LoadError(
                 f"spec.tables names {', '.join(missing)}, which the source doesn't have "
-                f"(it has: {', '.join(sorted(by_name))}); `geodata discover` lists them")
+                f"(it has: {', '.join(sorted(by_name))}); `dataops discover` lists them")
         chosen = list(wanted)
     else:
         chosen = [layer for _, layer, _ in found]
@@ -120,7 +120,7 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
         product = src.client.product(spec["url"] if src.type == "url" else spec["product"], spec.get("resource"))
     chosen = product.chosen
     if chosen is None:
-        raise ingest.LoadError(f"{product.id} has nothing geodata can load; `geodata discover` shows what it offers")
+        raise ingest.LoadError(f"{product.id} has nothing dataops can load; `dataops discover` shows what it offers")
     last = ingest.last_load(conn, dataset.name)
     if not force and up_to_date(conn, db, dataset, last, product.version, None):
         ingest.record(conn, dataset.name, product.version, chosen.format, "skipped", started, sha=last.sha256, tables=last.tables)
@@ -133,7 +133,7 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
     project_crs = project.spec.get("crs") or DEFAULT_CRS
     if raster_spec:
         return sync_raster(conn, dataset, src, product, last, started, force, project, project_crs)
-    with tempfile.TemporaryDirectory(prefix="geodata-sync-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="geoserver-dataops-") as tmp:
         sha, gdal_names = None, None
         if chosen.service:
             connection, gdal_layer, *named = src.client.gdal_source(product)
@@ -184,7 +184,7 @@ def sync_raster(conn, dataset: Resource, src, product: Product, last, started: d
     if in_place and product.version and last.version == product.version:
         ingest.record(conn, dataset.name, last.version, chosen.format, "skipped", started, sha=last.sha256, tables=[path])
         return f"{dataset.name}: up to date ({discover.version(last.version)})", []
-    with tempfile.TemporaryDirectory(prefix="geodata-sync-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="geoserver-dataops-") as tmp:
         work = Path(tmp)
         if product.parts:  # several files, one raster: the digest of theirs stands for them
             (work / "parts").mkdir()
@@ -249,7 +249,7 @@ def run(root: Path, names: list[str], force: bool = False, loaded_file: Path | N
     if problems:
         for p in problems[:10]:
             print(f"{p.file}:{p.line}: {p.resource + ': ' if p.resource else ''}{p.message}", file=sys.stderr)
-        raise SyncError(f"the files have {len(problems)} error(s); `geodata validate` lists them")
+        raise SyncError(f"the files have {len(problems)} error(s); `dataops validate` lists them")
     project = project_files.of_kind("Project")[0]
     datasets = project_files.named("Dataset")
     unknown = [n for n in names if n not in datasets]
@@ -269,7 +269,7 @@ def run(root: Path, names: list[str], force: bool = False, loaded_file: Path | N
         raise SyncError(f"can't take the sync lock: {str(e).strip().splitlines()[0]}", code=1) from None
     if lock is None:
         conn.close()
-        raise SyncError(f"another `geodata sync` is loading into this database (staging schema {db.staging}); "
+        raise SyncError(f"another `dataops sync` is loading into this database (staging schema {db.staging}); "
                         "this run changed nothing", code=1)
 
     failures, everything_loaded = 0, []

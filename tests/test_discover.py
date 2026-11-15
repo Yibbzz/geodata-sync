@@ -1,4 +1,4 @@
-"""`geodata discover`, against a fake OS Downloads API and small local archives."""
+"""`dataops discover`, against a fake OS Downloads API and small local archives."""
 
 import io
 import json
@@ -10,13 +10,13 @@ from pathlib import Path
 
 import pytest
 
-from geodata_sync import discover, remote, secrets
-from geodata_sync.cli import main
-from geodata_sync.sources import Download, NotFound, SourceError, ckan, os_downloads
-from geodata_sync.sources.ckan import CKAN
-from geodata_sync.sources.formats import classify
-from geodata_sync.sources.os_downloads import OSDownloads, choose
-from geodata_sync.sources.url import URL
+from geoserver_dataops import discover, remote, secrets
+from geoserver_dataops.cli import main
+from geoserver_dataops.sources import Download, NotFound, SourceError, ckan, os_downloads
+from geoserver_dataops.sources.ckan import CKAN
+from geoserver_dataops.sources.formats import classify
+from geoserver_dataops.sources.os_downloads import OSDownloads, choose
+from geoserver_dataops.sources.url import URL
 
 BASE = os_downloads.BASE_API
 SIGNED = "https://storage.example/oproad_gpkg_gb.zip?sig=abc"
@@ -98,22 +98,22 @@ def fake_os(monkeypatch, tmp_path):
 
 
 SOURCES = """\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: { name: os }
 spec: { type: os-downloads, credentials: { secret: os-api } }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: { name: web }
 spec: { type: url }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: { name: portal }
 spec: { type: ckan, url: https://ckan.example.org }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: { name: esri }
 spec: { type: arcgis-rest, url: https://maps.example.org }
@@ -207,25 +207,25 @@ def test_search_filters_os_products(fake_os):
 
 
 def test_secret_from_environment_then_secrets_file(tmp_path, monkeypatch):
-    assert secrets.env_name("os-api", "apiKey") == "GEODATA_OS_API_APIKEY"
+    assert secrets.env_name("os-api", "apiKey") == "DATAOPS_OS_API_APIKEY"
     (tmp_path / "secrets.yaml").write_text("os-api: { apiKey: from-file }\n")
-    monkeypatch.delenv("GEODATA_OS_API_APIKEY", raising=False)
+    monkeypatch.delenv("DATAOPS_OS_API_APIKEY", raising=False)
     assert secrets.lookup("os-api", "apiKey", tmp_path) == "from-file"
-    monkeypatch.setenv("GEODATA_OS_API_APIKEY", "from-env")
+    monkeypatch.setenv("DATAOPS_OS_API_APIKEY", "from-env")
     assert secrets.lookup("os-api", "apiKey", tmp_path) == "from-env"
     assert secrets.lookup("other", "apiKey", tmp_path) is None
 
 
 def test_a_source_from_the_project_brings_its_key(proj, monkeypatch):
-    monkeypatch.setenv("GEODATA_OS_API_APIKEY", "k")
+    monkeypatch.setenv("DATAOPS_OS_API_APIKEY", "k")
     src = discover.resolve("os", proj)
     assert (src.type, src.client.api_key) == ("os-downloads", "k")
 
 
 def test_a_missing_key_is_a_note_not_an_error(proj, monkeypatch, capsys):
-    monkeypatch.delenv("GEODATA_OS_API_APIKEY", raising=False)
+    monkeypatch.delenv("DATAOPS_OS_API_APIKEY", raising=False)
     assert discover.resolve("os", proj).client.api_key is None
-    assert "GEODATA_OS_API_APIKEY" in capsys.readouterr().err
+    assert "DATAOPS_OS_API_APIKEY" in capsys.readouterr().err
 
 
 def test_a_source_type_works_without_a_project(tmp_path):
@@ -248,7 +248,7 @@ def test_listing_products(fake_os, proj, capsys):
     out = capsys.readouterr().out
     assert "OpenRoads  2026-10  GeoPackage  OS Open Roads" in out
     assert "MiniScale  2026-01  -" in out
-    assert "2 products from os; 1 have nothing geodata can load" in out
+    assert "2 products from os; 1 have nothing dataops can load" in out
 
 
 def test_one_product_shows_downloads_and_layers(fake_os, proj, capsys):
@@ -292,13 +292,13 @@ def test_json(fake_os, proj, capsys):
 
 def test_a_product_with_nothing_to_load(fake_os, proj, capsys):
     assert main(["discover", "-C", str(proj), "os", "MiniScale"]) == 0
-    assert "No download geodata can load" in capsys.readouterr().out
+    assert "No download dataops can load" in capsys.readouterr().out
     assert fake_os.reads == []
 
 
 def test_unknown_product_says_how_to_list(fake_os, proj, capsys):
     assert main(["discover", "-C", str(proj), "os", "OpenRaods"]) == 1
-    assert "os has no product 'OpenRaods'; find one with: geodata discover os --search <words>" in capsys.readouterr().err
+    assert "os has no product 'OpenRaods'; find one with: dataops discover os --search <words>" in capsys.readouterr().err
 
 
 # --- reading archives (real GDAL on small local files)
@@ -592,7 +592,7 @@ def test_ckan_resource_by_id_or_name(fake_ckan):
     assert client.product("conservation-areas", resource="conservation areas").chosen.id == "r-shp"
     with pytest.raises(SourceError, match="no resource 'nope'"):
         client.product("conservation-areas", resource="nope")
-    with pytest.raises(SourceError, match="not a file geodata can load"):
+    with pytest.raises(SourceError, match="not a file dataops can load"):
         client.product("conservation-areas", resource="r-wms")
 
 
@@ -620,7 +620,7 @@ def test_ckan_command(fake_ckan, proj, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "Conservation Areas (conservation-areas), version 2026-11-04" in out
     assert "  * GeoPackage: Conservation Areas GPKG, ca.gpkg, 4.1 KB  [r-gpkg]" in out
-    assert "WMS: Web Map Service (not a file geodata loads)" in out
+    assert "WMS: Web Map Service (not a file dataops loads)" in out
     assert "resource: r-gpkg" in out
     assert reads == [("https://files.example/ca.gpkg", "ca.gpkg")]
 
@@ -629,7 +629,7 @@ def test_ckan_listing_by_type_with_url_and_options_anywhere(fake_ckan, tmp_path,
     assert main(["discover", "ckan", "--search", "conservation", "--url", "https://ckan.example.org"]) == 0
     out = capsys.readouterr().out
     assert "conservation-areas  2026-11-04  GeoPackage  Conservation Areas" in out
-    assert "Layers inside one: geodata discover ckan --url https://ckan.example.org <product>" in out
+    assert "Layers inside one: dataops discover ckan --url https://ckan.example.org <product>" in out
     assert main(["discover", "ckan", "--url", "https://ckan.example.org", "conservation-areas", "--no-layers"]) == 0
 
 
@@ -653,11 +653,11 @@ def test_search_and_resource_need_the_right_form(fake_ckan, proj, capsys):
 def test_secret_from_a_mounted_kubernetes_secret(tmp_path, monkeypatch):
     (tmp_path / "geoserver-pgconfig-secret").mkdir()
     (tmp_path / "geoserver-pgconfig-secret" / "password").write_text("s3cret\n")
-    monkeypatch.setenv("GEODATA_SECRETS_DIR", str(tmp_path))
-    monkeypatch.delenv("GEODATA_GEOSERVER_PGCONFIG_SECRET_PASSWORD", raising=False)
+    monkeypatch.setenv("DATAOPS_SECRETS_DIR", str(tmp_path))
+    monkeypatch.delenv("DATAOPS_GEOSERVER_PGCONFIG_SECRET_PASSWORD", raising=False)
     assert secrets.lookup("geoserver-pgconfig-secret", "password") == "s3cret"
     assert secrets.lookup("geoserver-pgconfig-secret", "host") is None
-    monkeypatch.setenv("GEODATA_GEOSERVER_PGCONFIG_SECRET_PASSWORD", "override")
+    monkeypatch.setenv("DATAOPS_GEOSERVER_PGCONFIG_SECRET_PASSWORD", "override")
     assert secrets.lookup("geoserver-pgconfig-secret", "password") == "override"
 
 

@@ -1,4 +1,4 @@
-"""`geodata sync` of a raster Dataset, against a real PostGIS (see test_sync_integration.py)."""
+"""`dataops sync` of a raster Dataset, against a real PostGIS (see test_sync_integration.py)."""
 
 import functools
 import http.server
@@ -15,7 +15,7 @@ def test_an_unchanged_raster_is_not_downloaded_again(tmp_path, schemas, env, cap
     """The source's version (here Last-Modified) is checked before the download, not after it."""
     www, data = tmp_path / "www", tmp_path / "data"
     www.mkdir(), data.mkdir()
-    monkeypatch.setenv("GEODATA_DATA_DIR", str(data))
+    monkeypatch.setenv("DATAOPS_DATA_DIR", str(data))
     (www / "dtm.asc").write_text("ncols 2\nnrows 2\nxllcorner 0\nyllcorner 0\ncellsize 50\n1 2\n3 4\n")
     downloads = []
 

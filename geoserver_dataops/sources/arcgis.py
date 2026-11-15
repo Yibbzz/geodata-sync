@@ -92,7 +92,7 @@ class ArcGIS:
         if r.status_code == 404:
             raise NotFound(what)
         if r.status_code in (401, 403):
-            raise SourceError(f"{url} refused the request (HTTP {r.status_code}); geodata reads public services only")
+            raise SourceError(f"{url} refused the request (HTTP {r.status_code}); dataops reads public services only")
         if r.status_code != 200:
             raise SourceError(f"{url} answered HTTP {r.status_code}")
         try:
@@ -106,7 +106,7 @@ class ArcGIS:
             if code == 404 or (code == 400 and any(m in message.lower() for m in ("not found", "invalid or missing input"))):
                 raise NotFound(what)
             if code in (498, 499):
-                raise SourceError(f"{url} needs a token; geodata reads public services only")
+                raise SourceError(f"{url} needs a token; dataops reads public services only")
             raise SourceError(f"{url}: {message or 'error'} (code {code})")
         if not isinstance(data, dict):
             raise SourceError(f"{url} didn't answer with an ArcGIS JSON object")
@@ -136,7 +136,7 @@ class ArcGIS:
         try:
             data = self._json(service, service)
         except SourceError as e:  # a secured service, or one that is down: the others are still worth listing
-            print(f"geodata: note: {service} left out: {e}", file=sys.stderr)
+            print(f"dataops: note: {service} left out: {e}", file=sys.stderr)
             return []
         products = []
         for layer in (data.get("layers") or []) + (data.get("tables") or []):
@@ -171,11 +171,11 @@ class ArcGIS:
         m = SERVICE_PATH.match(path)
         if not m or m.group("layer") is None:
             raise SourceError(f"'{layer_path}' isn't a layer: give its path below the services directory, "
-                              "e.g. Hydrography/Rivers/FeatureServer/0 (`geodata discover` lists them)")
+                              "e.g. Hydrography/Rivers/FeatureServer/0 (`dataops discover` lists them)")
         path = f"{m.group('service')}/{m.group('layer')}"
         info = self._json(path, layer_path)
         if info.get("type") not in ("Feature Layer", "Table"):
-            raise SourceError(f"{path} is a {info.get('type') or 'layer'} geodata can't load (only feature layers and tables)")
+            raise SourceError(f"{path} is a {info.get('type') or 'layer'} dataops can't load (only feature layers and tables)")
         if "query" not in str(info.get("capabilities", "Query")).lower():
             raise SourceError(f"{path} can't be queried, so its features can't be read")
         self._info[path] = info

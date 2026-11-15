@@ -2,9 +2,9 @@
 
 import pytest
 
-from geodata_sync.cli import main
-from geodata_sync.sources import NotFound, SourceError
-from geodata_sync.sources.catalogue import CSW, OGCAPIRecords
+from geoserver_dataops.cli import main
+from geoserver_dataops.sources import NotFound, SourceError
+from geoserver_dataops.sources.catalogue import CSW, OGCAPIRecords
 from fake_catalogue import CatalogueServer
 
 
@@ -42,7 +42,7 @@ def test_a_record_with_only_a_service_points_to_it(client):
 
 def test_resource_picks_a_link_and_refuses_one_that_isnt_a_file(client):
     assert client.product("flood-areas", "GeoJSON").chosen.name == "GeoJSON"
-    with pytest.raises(SourceError, match="not a file geodata can load"):
+    with pytest.raises(SourceError, match="not a file dataops can load"):
         client.product("flood-areas", "Flood areas WFS")
     with pytest.raises(SourceError, match="has no link 'nope'"):
         client.product("flood-areas", "nope")
@@ -66,4 +66,4 @@ def test_a_csw_error_is_reported(server):
 def test_discover_suggests_how_to_read_a_records_service(server, capsys, tmp_path):
     assert main(["discover", "csw", "parcels", "--url", f"{server.base}/csw", "-C", str(tmp_path), "--no-layers"]) == 0
     out = capsys.readouterr().out
-    assert "discover it: geodata discover arcgis --url https://gis.example/arcgis/rest/services/Parcels/FeatureServer/0" in out
+    assert "discover it: dataops discover arcgis --url https://gis.example/arcgis/rest/services/Parcels/FeatureServer/0" in out

@@ -1,4 +1,4 @@
-"""`geodata sync` from Socrata and OpenDataSoft portals: a dataset's GeoJSON export loaded, and not
+"""`dataops sync` from Socrata and OpenDataSoft portals: a dataset's GeoJSON export loaded, and not
 exported again while its data is unchanged. Against a real PostGIS (see test_sync_integration.py)."""
 
 import pytest
@@ -16,7 +16,7 @@ def test_a_portal_dataset_loads_and_reloads_only_when_its_data_changes(tmp_path,
     server = PortalServer()
     try:
         (tmp_path / "project.yaml").write_text(f"""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: {{ name: t }}
 spec:
@@ -24,12 +24,12 @@ spec:
     connection: {{ secret: testdb }}
     schemas: {{ live: {live}, staging: {schemas[1]}, backup: {schemas[2]} }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: portal }}
 spec: {{ type: {kind}, url: "{server.url}" }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: sites }}
 spec: {{ source: portal, product: {product} }}

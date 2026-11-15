@@ -1,4 +1,4 @@
-"""`geodata sync` of a STAC selection: every matching item's file downloaded and mosaicked into one COG,
+"""`dataops sync` of a STAC selection: every matching item's file downloaded and mosaicked into one COG,
 and nothing downloaded while the items stay the same. Against a real PostGIS (see test_sync_integration.py)."""
 
 import json
@@ -14,7 +14,7 @@ pytestmark = pytest.mark.integration
 
 def project(tmp_path, url, schemas):
     (tmp_path / "project.yaml").write_text(f"""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: {{ name: t }}
 spec:
@@ -22,12 +22,12 @@ spec:
     connection: {{ secret: testdb }}
     schemas: {{ live: {schemas[0]}, staging: {schemas[1]}, backup: {schemas[2]} }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: es }}
 spec: {{ type: stac, url: "{url}" }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: sites }}
 spec:
@@ -50,7 +50,7 @@ def stats(path):
 def test_a_stac_selection_becomes_one_cog_and_reloads_only_when_items_change(tmp_path, schemas, env, capsys, monkeypatch):
     data = tmp_path / "data"
     data.mkdir()
-    monkeypatch.setenv("GEODATA_DATA_DIR", str(data))
+    monkeypatch.setenv("DATAOPS_DATA_DIR", str(data))
     (tmp_path / "tiles").mkdir()
     (tmp_path / "project").mkdir()
     server = STACServer(tmp_path / "tiles")

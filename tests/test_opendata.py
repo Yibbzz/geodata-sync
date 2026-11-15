@@ -2,8 +2,8 @@
 
 import pytest
 
-from geodata_sync.sources import NotFound, SourceError
-from geodata_sync.sources.opendata import OpenDataSoft, Socrata
+from geoserver_dataops.sources import NotFound, SourceError
+from geoserver_dataops.sources.opendata import OpenDataSoft, Socrata
 from fake_opendata import PortalServer
 
 

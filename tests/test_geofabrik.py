@@ -4,8 +4,8 @@ import shutil
 
 import pytest
 
-from geodata_sync.sources import NotFound, SourceError
-from geodata_sync.sources.geofabrik import Geofabrik
+from geoserver_dataops.sources import NotFound, SourceError
+from geoserver_dataops.sources.geofabrik import Geofabrik
 from fake_geofabrik import GeofabrikServer, shapefile_pack
 from test_sync_integration import env, schemas, sync, tables_in  # noqa: F401 (fixtures)
 
@@ -59,7 +59,7 @@ def test_an_extract_loads_and_reloads_only_once_rebuilt(tmp_path, server, schema
     live = schemas[0]
     (tmp_path / "p").mkdir()
     (tmp_path / "p" / "project.yaml").write_text(f"""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: {{ name: t }}
 spec:
@@ -67,12 +67,12 @@ spec:
     connection: {{ secret: testdb }}
     schemas: {{ live: {live}, staging: {schemas[1]}, backup: {schemas[2]} }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: osm }}
 spec: {{ type: geofabrik, url: "{server.url}" }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: sites }}
 spec:

@@ -1,6 +1,6 @@
-# geodata-sync files (`geodata/v1alpha1`)
+# geoserver-dataops files (`dataops/v1alpha1`)
 
-A set of YAML files that says which open datasets you want, where they come from and how often they update. `geodata` reads them and keeps PostGIS up to date: it downloads each new version, loads it into staging tables, checks it, backs up the old tables and swaps the new ones in, in one transaction.
+A set of YAML files that says which open datasets you want, where they come from and how often they update. `dataops` reads them and keeps PostGIS up to date: it downloads each new version, loads it into staging tables, checks it, backs up the old tables and swaps the new ones in, in one transaction.
 
 Publishing the tables (GeoServer layers, styles, caching) is another tool's job: [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-configops) publishes them from its own files, and `configops refresh` brings GeoServer up to date after a load.
 
@@ -14,7 +14,7 @@ Publishing the tables (GeoServer layers, styles, caching) is another tool's job:
 
 ## Files
 
-`geodata` reads every `*.yaml` file under one directory (`secrets.yaml` aside). A file can hold several resources separated by `---`:
+`dataops` reads every `*.yaml` file under one directory (`secrets.yaml` aside). A file can hold several resources separated by `---`:
 
 ```
 uk-basemap/
@@ -32,7 +32,7 @@ uk-basemap/
 One per directory: the database to load into, and defaults.
 
 ```yaml
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata:
   name: uk-basemap
@@ -56,7 +56,7 @@ spec:
 Where data comes from. One per provider account.
 
 ```yaml
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata:
   name: os
@@ -64,14 +64,14 @@ spec:
   type: os-downloads                 # OS Downloads API
   credentials: { secret: os-api }    # key: apiKey; optional, OpenData products need none
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata:
   name: web
 spec:
   type: url                          # plain file downloads, no key
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata:
   name: data-gov-uk
@@ -98,7 +98,7 @@ spec:
 | `csw` (Catalogue Service for the Web 2.0.2: the INSPIRE geoportals, GeoNetwork) | yes: records, by search | no for public catalogues | built, as `ogc-api-records` |
 | `socrata` (most US city and state portals: New York, Chicago, Seattle) | yes: datasets with a geometry column, and geospatial assets | no; an app token (`apiKey`) avoids throttling | built: exported whole as GeoJSON; the version is when its data last changed |
 | `opendatasoft` (French, Belgian and Swiss portals, data.opendatasoft.com) | yes: datasets with geometry | no for public data; an API key (`apiKey`) for private ones | built: exported whole as GeoJSON; the version is when its data was last processed |
-| `overture` (Overture Maps: the world's buildings, roads, places, addresses, boundaries and land, monthly) | yes: each theme's types (`buildings/building`, `places/place`) | no | built: the rows in an area (`overture.bbox`) of the newest release; the version is the release, so it loads again monthly. Needs pyarrow and shapely (`pip install 'geodata-sync[overture]'`; the image has them) |
+| `overture` (Overture Maps: the world's buildings, roads, places, addresses, boundaries and land, monthly) | yes: each theme's types (`buildings/building`, `places/place`) | no | built: the rows in an area (`overture.bbox`) of the newest release; the version is the release, so it loads again monthly. Needs pyarrow and shapely (`pip install 'geoserver-dataops[overture]'`; the image has them) |
 | `geofabrik` (OpenStreetMap extracts: every continent and country, many regions, rebuilt daily) | yes: the regions of Geofabrik's index (`great-britain`, `bayern`, `new-zealand`) | no | built: Geofabrik's free shapefiles (about 20 tidy layers) where it makes them, else the OSM extract through GDAL's OSM driver (`resource: pbf` picks it anyway); the version is when the file was built, checked with one byte, and the download is checked against Geofabrik's MD5 |
 | `koordinates` (New Zealand: the LINZ Data Service, Stats NZ Datafinder, MfE; others on koordinates.com) | yes: vector layers and tables, by search | yes, always (`apiKey`, with access to exports) | built: an export (GeoPackage, in the layer's CRS) is asked for, waited on and downloaded; the version is the layer's version |
 | `arcgis` (ArcGIS Server and ArcGIS Online: much US, Canadian and Australian government data) | yes: the layers of its FeatureServer and MapServer services | no for public services | built: a layer's last edit is its version, so an unchanged layer isn't loaded again |
@@ -110,15 +110,15 @@ Each type is a plug-in with two parts: list what's available, and fetch one prod
 One product from a source, loaded into one or more tables (or, with `raster:`, made into one Cloud-Optimised GeoTIFF), with an update schedule.
 
 ```yaml
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata:
   name: os-open-roads
 spec:
   source: os
-  product: OpenRoads                 # the provider's product ID, as `geodata discover os` lists it
+  product: OpenRoads                 # the provider's product ID, as `dataops discover os` lists it
   update: weekly                     # daily | weekly | monthly | manual | a cron expression
-  tables:                            # source layer -> table; names as `geodata discover os OpenRoads` lists them
+  tables:                            # source layer -> table; names as `dataops discover os OpenRoads` lists them
     road_link: {}                    # table os_open_roads_road_link
     road_node: { name: road_nodes }  # table road_nodes
 ```
@@ -135,7 +135,7 @@ spec:
 | `tables.<layer>.crs` | no | from the file, else the project's `crs` | Override when the file doesn't declare its CRS |
 | `overture.bbox` | for `overture` | | The area, in degrees: `[west, south, east, north]`. Rows whose bounding box touches it are loaded (a road crossing its edge, whole). Structures (`names`, `sources`) become `json` columns, lists arrays. Only the files' footers and the row groups in the area are read, but a type in many files (buildings) takes a minute or so to look through |
 | `stac.bbox` | for `stac` | | The area, in degrees: `[west, south, east, north]` |
-| `stac.asset` | for `stac` | | Which file of each item, by its key (`data`, `visual`, `B04`): `geodata discover <source> <collection>` lists them |
+| `stac.asset` | for `stac` | | Which file of each item, by its key (`data`, `visual`, `B04`): `dataops discover <source> <collection>` lists them |
 | `stac.datetime` | no | every time | A time or range, as STAC writes it (`2024-06-01/2024-06-30`). For a collection of repeated scenes (Sentinel-2), give one: every scene in it is mosaicked, the newest on top |
 | `validation.dropInvalidGeometries` | no | `true` | Leave out rows whose geometry PostGIS calls invalid |
 | `validation.minRows` | no | `1` | Fail the update (keep the old table) below this count |
@@ -147,7 +147,7 @@ A product is a *version* at the source (OS publishes `2026-10`, for example). `s
 With `raster:` instead of `tables:`, the download becomes one Cloud-Optimised GeoTIFF in a data folder (`/data`, the folder GeoServer's file stores read; configops publishes it with a `Store` whose `path` is the same):
 
 ```yaml
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata:
   name: terrain-50
@@ -166,20 +166,20 @@ spec:
 | `raster.crs` | the rasters' own, else the project's `crs` | Assigned to the result |
 | `raster.nodata` | none | The value written where no raster covers (GDAL would write 0 there), and read as "no data" in the rasters |
 
-`sync` downloads the product (for `os-downloads`, a raster format: GeoTIFF, then ASCII Grid; for `ckan`, name the file with `resource`), unpacks every raster in it, through zips inside zips, mosaics them through a GDAL VRT and writes one deflate-compressed COG with overviews. It writes beside the live file, checks GDAL can read it, then renames it over the live file, so GeoServer never reads half a file; the old one moves to `.geodata-backups/` beside it, and the newest `backups` are kept. `GEODATA_DATA_DIR` stands in for `/data` where the folder is mounted elsewhere.
+`sync` downloads the product (for `os-downloads`, a raster format: GeoTIFF, then ASCII Grid; for `ckan`, name the file with `resource`), unpacks every raster in it, through zips inside zips, mosaics them through a GDAL VRT and writes one deflate-compressed COG with overviews. It writes beside the live file, checks GDAL can read it, then renames it over the live file, so GeoServer never reads half a file; the old one moves to `.dataops-backups/` beside it, and the newest `backups` are kept. `DATAOPS_DATA_DIR` stands in for `/data` where the folder is mounted elsewhere.
 
 ## Secrets
 
-A `secret` field names a secret; the files never hold its value. Where `geodata` looks, for secret `os-api`, key `apiKey`:
+A `secret` field names a secret; the files never hold its value. Where `dataops` looks, for secret `os-api`, key `apiKey`:
 
 | Running | Where it comes from |
 | --- | --- |
-| On a laptop or in CI | Environment variable `GEODATA_OS_API_APIKEY`, or a git-ignored `secrets.yaml` next to the project (`os-api: { apiKey: ... }`) |
-| In Kubernetes | Files `$GEODATA_SECRETS_DIR/os-api/apiKey`: the Secret mounted as a folder |
+| On a laptop or in CI | Environment variable `DATAOPS_OS_API_APIKEY`, or a git-ignored `secrets.yaml` next to the project (`os-api: { apiKey: ... }`) |
+| In Kubernetes | Files `$DATAOPS_SECRETS_DIR/os-api/apiKey`: the Secret mounted as a folder |
 
 ## Checking files as you type
 
-`geodata validate` checks every resource against the JSON Schema in [`geodata_sync/schema/v1alpha1.json`](../geodata_sync/schema/v1alpha1.json), then the rules across files. Editors that understand JSON Schema check the files as you type: in VS Code, with the YAML extension, the repo's `.vscode/settings.json` points the examples at it; for your own project, add the same `yaml.schemas` entry.
+`dataops validate` checks every resource against the JSON Schema in [`geoserver_dataops/schema/v1alpha1.json`](../geoserver_dataops/schema/v1alpha1.json), then the rules across files. Editors that understand JSON Schema check the files as you type: in VS Code, with the YAML extension, the repo's `.vscode/settings.json` points the examples at it; for your own project, add the same `yaml.schemas` entry.
 
 ## Ownership
 
@@ -189,27 +189,27 @@ Only tables a Dataset declares, in the Project's schemas, are created, replaced 
 
 | Command | Does |
 | --- | --- |
-| `geodata validate` | Checks the files: schema, references between resources. No network |
-| `geodata discover <source> [product]` | Lists products a source offers, or the layers inside one product |
-| `geodata sync [dataset]` | Checks sources for new versions and loads them (stage, validate, back up, swap in). The nightly job |
-| `geodata status` | Per dataset: version loaded, when, rows, last error, next check |
+| `dataops validate` | Checks the files: schema, references between resources. No network |
+| `dataops discover <source> [product]` | Lists products a source offers, or the layers inside one product |
+| `dataops sync [dataset]` | Checks sources for new versions and loads them (stage, validate, back up, swap in). The nightly job |
+| `dataops status` | Per dataset: version loaded, when, rows, last error, next check |
 
 ### `discover`
 
-`geodata discover <source>` lists a source's products and the format each would load as; `geodata discover <source> <product>` lists its downloads, marks the one `sync` would use, and lists the layers inside it, which are the names `tables` takes. `<source>` is a Source in the project (`-C dir`, default the current directory), whose secret supplies the API key if it has one, or a source type when there is no project yet: `os-downloads`, `ckan --url <portal>`, or `url`.
+`dataops discover <source>` lists a source's products and the format each would load as; `dataops discover <source> <product>` lists its downloads, marks the one `sync` would use, and lists the layers inside it, which are the names `tables` takes. `<source>` is a Source in the project (`-C dir`, default the current directory), whose secret supplies the API key if it has one, or a source type when there is no project yet: `os-downloads`, `ckan --url <portal>`, or `url`.
 
 | Source type | `discover <source>` | `discover <source> <product>` |
 | --- | --- | --- |
 | `os-downloads` | Every OS product (`--search` narrows) | The product's formats; layers of the one `sync` uses |
 | `ckan` | Packages matching `--search`, 20 at a time (`--limit`); without a search, the latest changed | The package's resources, marked loadable or not (web pages and services aren't); layers of the best file, or of `--resource <id or name>` |
-| `url` | (nothing to list) | The product is the file's address: `geodata discover url https://example.org/roads.zip` |
+| `url` | (nothing to list) | The product is the file's address: `dataops discover url https://example.org/roads.zip` |
 | `wfs` | The service's feature types (`--search` narrows) | The feature type (with or without its namespace prefix): geometry, CRS and count, read by GDAL's WFS driver, which also loads it, so the layer name shown is the loader's |
 | `ogc-api-features` | The API's feature collections (coverages and records are left out) | The collection: the count from `numberMatched`, the geometry from the first feature, the CRS the data is stored in |
 
 On a CKAN package, a resource that is a WFS or OGC API service (recognised by its format, address or title, since portals often leave the format blank) shows the command that discovers it, and search results mark packages with only a service as `via WFS`. Many data.gov.uk datasets are published this way, the Environment Agency's among them:
 
 ```
-$ geodata discover ogc-api-features --url https://environment.data.gov.uk/spatialdata/flood-map-for-planning-flood-zones/ogc/features/v1 Flood_Zones_2_3_Rivers_and_Sea
+$ dataops discover ogc-api-features --url https://environment.data.gov.uk/spatialdata/flood-map-for-planning-flood-zones/ogc/features/v1 Flood_Zones_2_3_Rivers_and_Sea
 Flood Zones 2 3 Rivers And Sea (Flood_Zones_2_3_Rivers_and_Sea)
   OGC API Features: https://environment.data.gov.uk/spatialdata/flood-map-for-planning-flood-zones/ogc/features/v1/collections/Flood_Zones_2_3_Rivers_and_Sea/items
 
@@ -220,7 +220,7 @@ Flood_Zones_2_3_Rivers_and_Sea  MultiPolygon  EPSG:27700  415,408
 Services are asked directly, so nothing is cached. Requests to any source are tried again, twice, when a server drops the connection or is briefly unavailable.
 
 ```
-$ geodata discover data-gov-uk conservation-areas125
+$ dataops discover data-gov-uk conservation-areas125
 Conservation Areas (conservation-areas125), version 2026-11-04
     Shapefile: Conservation Areas, conservation_areas.zip, size unknown  [c3a73b80-a7fb-4e21-ab32-e87f514b620e]
     GeoJSON: Conservation Areas, conservation_areas.geojson, size unknown  [5dcaa616-b91c-4e58-8b11-141fda4db7e1]
@@ -236,7 +236,7 @@ conservation_areas  Geometry  EPSG:27700  11
 Portals label formats loosely (`SHP`, `ZIP`, a media-type URL, or nothing), so the format comes from the declared format, the media type and the file name together; a zip named `roads.gpkg.zip` counts as a GeoPackage. Loadable files, best first: GeoPackage, Shapefile, GeoJSON, GML, File Geodatabase, KML, FlatGeobuf, then a zip of unknown contents.
 
 ```
-$ geodata discover os OpenRoads
+$ dataops discover os OpenRoads
 OS Open Roads (OpenRoads), version 2026-10
     ESRI® Shapefile: oproad_essh_gb.zip, 585.8 MB
     GML 3: oproad_gml3_gb.zip, 611.8 MB
@@ -256,10 +256,10 @@ The download `sync` uses is the first of GeoPackage, Shapefile, GML, MapInfo TAB
 
 ### `sync`
 
-`geodata sync` loads new versions of the project's datasets into PostGIS. Run with no names (the nightly job), it checks each Dataset whose `update` schedule is due; `geodata sync roads rivers` checks those two whatever their schedule, and `--force` loads even when nothing changed.
+`dataops sync` loads new versions of the project's datasets into PostGIS. Run with no names (the nightly job), it checks each Dataset whose `update` schedule is due; `dataops sync roads rivers` checks those two whatever their schedule, and `--force` loads even when nothing changed.
 
 ```
-$ geodata sync -C examples/uk-basemap
+$ dataops sync -C examples/uk-basemap
 boundary-line: not due (monthly)
 conservation-areas: loaded 2026-11-04 in 1s: data_layers.conservation_areas (10 rows)
   note: 1 invalid geometry left out
@@ -280,7 +280,7 @@ One run at a time: a run holds a PostgreSQL advisory lock on its staging schema,
 
 Every check (loaded, up to date, failed) is written to the ingest log in `public.os_ingest_log`, which is how the next run knows the version and when the dataset is next due. A failed check doesn't count, so the next run tries again. Schedules allow an hour's slack, so a daily dataset checked a little after 02:00 yesterday is due at 02:00 today; a cron expression is due when it has named a minute since the last check.
 
-The database comes from the Project's `database.connection` secret (keys `host`, `port`, `database`, `username`, `password`), so on a laptop: `GEODATA_DATABASE_HOST=localhost` and so on, or `secrets.yaml`.
+The database comes from the Project's `database.connection` secret (keys `host`, `port`, `database`, `username`, `password`), so on a laptop: `DATAOPS_DATABASE_HOST=localhost` and so on, or `secrets.yaml`.
 
 In Kubernetes, run it nightly as a CronJob ([kubernetes.md](kubernetes.md)).
 
@@ -293,10 +293,10 @@ Known gaps:
 
 ## `status`
 
-`geodata status` shows each dataset from the ingest log, and changes nothing:
+`dataops status` shows each dataset from the ingest log, and changes nothing:
 
 ```
-$ geodata status
+$ dataops status
 DATASET             UPDATE  LOADED      AT                ROWS  NEXT CHECK        LAST CHECK
 conservation-areas  weekly  2026-11-04  2026-11-10 13:53  10    2026-11-17 12:53  success
 os-open-roads       weekly  never       -                 -     now               failed: can't reach the OS Downloads API: …

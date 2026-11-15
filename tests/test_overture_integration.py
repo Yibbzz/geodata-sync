@@ -1,4 +1,4 @@
-"""`geodata sync` of an Overture type in an area, from the fake bucket, into a real PostGIS
+"""`dataops sync` of an Overture type in an area, from the fake bucket, into a real PostGIS
 (see test_sync_integration.py)."""
 
 import pytest
@@ -18,7 +18,7 @@ def test_an_overture_area_loads_with_its_structures_as_json(tmp_path, schemas, e
     try:
         (tmp_path / "p").mkdir()
         (tmp_path / "p" / "project.yaml").write_text(f"""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: {{ name: t }}
 spec:
@@ -26,12 +26,12 @@ spec:
     connection: {{ secret: testdb }}
     schemas: {{ live: {live}, staging: {schemas[1]}, backup: {schemas[2]} }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: overture }}
 spec: {{ type: overture, url: "{bucket.url}" }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: sites }}
 spec: {{ source: overture, product: places/place, overture: {{ bbox: [0, 51, 1, 52] }} }}

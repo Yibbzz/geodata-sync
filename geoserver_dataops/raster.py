@@ -4,9 +4,9 @@ Every raster in the download (inside zips, and zips inside those, as OS packs it
 tiles) is mosaicked through a GDAL VRT and written as one deflate-compressed COG
 with overviews. It's written beside the live file, checked, then renamed over it,
 so GeoServer never reads half a file; the file it replaces goes to
-.geodata-backups/ beside the data, and the newest `backups` copies are kept.
+.dataops-backups/ beside the data, and the newest `backups` copies are kept.
 
-The data folder is /data, where GeoServer's file stores read; GEODATA_DATA_DIR points
+The data folder is /data, where GeoServer's file stores read; DATAOPS_DATA_DIR points
 elsewhere (a laptop, the e2e tests).
 """
 
@@ -23,9 +23,9 @@ from pathlib import Path
 
 from .ingest import LoadError, check_unpacked_size, gdal_errors, stamp
 
-DATA_ENV = "GEODATA_DATA_DIR"
+DATA_ENV = "DATAOPS_DATA_DIR"
 RASTER_SUFFIXES = {".tif", ".tiff", ".asc", ".img", ".jp2", ".dem", ".bil", ".flt"}
-BACKUPS = ".geodata-backups"
+BACKUPS = ".dataops-backups"
 MAX_ZIP_DEPTH = 4  # zips inside zips inside zips: OS goes two deep
 
 

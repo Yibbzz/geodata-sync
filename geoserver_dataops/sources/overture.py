@@ -8,7 +8,7 @@ names the area it wants (`overture.bbox`): the world's buildings are billions of
 Only what is needed is read, over HTTP range requests: each file's footer, then the row groups whose
 bounding boxes (Overture keeps them per row group) overlap the area. The rows inside the area are written
 as GeoJSON sequence, which GDAL loads as any download; columns that hold structures (names, sources) become
-JSON. Reading Parquet needs pyarrow and shapely: pip install 'geodata-sync[overture]' (the image has them).
+JSON. Reading Parquet needs pyarrow and shapely: pip install 'geoserver-dataops[overture]' (the image has them).
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def libraries():
         import shapely
     except ImportError:
         raise SourceError("the overture source reads GeoParquet, which needs pyarrow and shapely: "
-                          "pip install 'geodata-sync[overture]' (the geodata-sync image has them)") from None
+                          "pip install 'geoserver-dataops[overture]' (the geoserver-dataops image has them)") from None
     return pq, pc, shapely
 
 
@@ -122,7 +122,7 @@ class Overture:
             raise SourceError("an Overture type has no resources to pick; a Dataset names its area with overture.bbox")
         if not re.fullmatch(r"[a-z_]+/[a-z_]+", product_id):
             raise SourceError(f"'{product_id}' isn't an Overture theme and type, such as buildings/building "
-                              "(`geodata discover overture` lists them)")
+                              "(`dataops discover overture` lists them)")
         release = self.release()
         theme, kind = product_id.split("/")
         if not self._list(f"release/{release}/theme={theme}/type={kind}/", True)[1]:

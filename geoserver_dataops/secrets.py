@@ -1,6 +1,6 @@
 """Secret values, looked up by name (spec: "Secrets").
 
-On a laptop or in CI: environment variable GEODATA_<SECRET>_<KEY> (upper
+On a laptop or in CI: environment variable DATAOPS_<SECRET>_<KEY> (upper
 case, anything else as `_`), else a git-ignored secrets.yaml next to the
 project:
 
@@ -8,7 +8,7 @@ project:
       apiKey: ...
 
 In Kubernetes, each Secret is mounted as a folder of files
-(docs/kubernetes.md): $GEODATA_SECRETS_DIR/<secret>/<key>. The environment still wins,
+(docs/kubernetes.md): $DATAOPS_SECRETS_DIR/<secret>/<key>. The environment still wins,
 so a value can be overridden.
 """
 
@@ -24,10 +24,10 @@ from .loader import SECRET_FILES
 
 
 def env_name(secret: str, key: str) -> str:
-    return "GEODATA_" + re.sub(r"[^A-Z0-9]+", "_", f"{secret}_{key}".upper()).strip("_")
+    return "DATAOPS_" + re.sub(r"[^A-Z0-9]+", "_", f"{secret}_{key}".upper()).strip("_")
 
 
-SECRETS_DIR = "GEODATA_SECRETS_DIR"
+SECRETS_DIR = "DATAOPS_SECRETS_DIR"
 
 
 # A query parameter that carries a credential: key, api_key, access_token, sig, X-Amz-Signature, X-Amz-Credential...

@@ -1,14 +1,14 @@
-"""`geodata discover` on web services: WFS and OGC API Features, faked."""
+"""`dataops discover` on web services: WFS and OGC API Features, faked."""
 
 import pytest
 
-from geodata_sync import crs, discover, remote
-from geodata_sync.cli import main
-from geodata_sync.sources import NotFound, Product, SourceError, http_session
-from geodata_sync.sources.ckan import CKAN
-from geodata_sync.sources.formats import service, service_address
-from geodata_sync.sources.ogcapi import OGCAPIFeatures, is_features
-from geodata_sync.sources.wfs import WFS, parse_capabilities
+from geoserver_dataops import crs, discover, remote
+from geoserver_dataops.cli import main
+from geoserver_dataops.sources import NotFound, Product, SourceError, http_session
+from geoserver_dataops.sources.ckan import CKAN
+from geoserver_dataops.sources.formats import service, service_address
+from geoserver_dataops.sources.ogcapi import OGCAPIFeatures, is_features
+from geoserver_dataops.sources.wfs import WFS, parse_capabilities
 
 
 class FakeResponse:
@@ -274,12 +274,12 @@ def test_service_listing_hint_uses_the_tidied_quoted_address(fake_services, caps
     assert main(["discover", "wfs", "--url", "https://x/wfs?service=WFS&request=GetCapabilities&map=a b"]) == 0
     out = capsys.readouterr().out
     assert "2 products from wfs" in out
-    assert "Layers inside one: geodata discover wfs --url 'https://x/wfs?map=a+b' <product>" in out
+    assert "Layers inside one: dataops discover wfs --url 'https://x/wfs?map=a+b' <product>" in out
 
 
 def test_a_wfs_source_from_the_project(fake_services, tmp_path, capsys):
     (tmp_path / "sources.yaml").write_text(
-        "apiVersion: geodata/v1alpha1\nkind: Source\nmetadata: { name: bgs }\nspec: { type: wfs, url: https://x/wfs }\n")
+        "apiVersion: dataops/v1alpha1\nkind: Source\nmetadata: { name: bgs }\nspec: { type: wfs, url: https://x/wfs }\n")
     assert main(["discover", "-C", str(tmp_path), "bgs", "--search", "bedrock"]) == 0
     assert "geo:bedrock" in capsys.readouterr().out
 
@@ -313,10 +313,10 @@ def portal(monkeypatch, tmp_path):
 def test_ckan_services_say_how_to_discover_them(portal, capsys):
     assert main(["discover", "ckan", "--url", "https://ckan.example", "flood-zones"]) == 0
     out = capsys.readouterr().out
-    assert "WFS: FloodZones_WFS (a service, not a file)  [r-wfs]\n        discover it: geodata discover wfs --url https://x/flood/wfs" in out
-    assert "discover it: geodata discover ogc-api-features --url https://x/flood/ogc/features/v1" in out
-    assert "WMS: FloodZones_WMS (not a file geodata loads)" in out
-    assert "No download geodata can load" in out
+    assert "WFS: FloodZones_WFS (a service, not a file)  [r-wfs]\n        discover it: dataops discover wfs --url https://x/flood/wfs" in out
+    assert "discover it: dataops discover ogc-api-features --url https://x/flood/ogc/features/v1" in out
+    assert "WMS: FloodZones_WMS (not a file dataops loads)" in out
+    assert "No download dataops can load" in out
 
 
 def test_ckan_listing_marks_service_only_packages(portal, capsys):

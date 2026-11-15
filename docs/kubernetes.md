@@ -1,21 +1,21 @@
-# geodata in Kubernetes
+# dataops in Kubernetes
 
-[`kubernetes/geodata.yaml`](kubernetes/geodata.yaml) is a CronJob that runs `geodata sync` nightly: each Dataset whose `update` says it's due is checked, and loaded when there's a new version. Its second container runs [`configops refresh`](https://github.com/Yibbzz/geoserver-configops) on what was loaded, so GeoServer's layers on new data get their new bounds and lose their old cached tiles; leave it out if nothing publishes the tables.
+[`kubernetes/dataops.yaml`](kubernetes/dataops.yaml) is a CronJob that runs `dataops sync` nightly: each Dataset whose `update` says it's due is checked, and loaded when there's a new version. Its second container runs [`configops refresh`](https://github.com/Yibbzz/geoserver-configops) on what was loaded, so GeoServer's layers on new data get their new bounds and lose their old cached tiles; leave it out if nothing publishes the tables.
 
 ## 1. An image with your project in it
 
-[`kubernetes/Dockerfile`](kubernetes/Dockerfile) copies a project folder into the geodata image, so every run uses the same files and a new version is a new tag:
+[`kubernetes/Dockerfile`](kubernetes/Dockerfile) copies a project folder into the dataops image, so every run uses the same files and a new version is a new tag:
 
 ```bash
-docker build -f docs/kubernetes/Dockerfile --build-arg PROJECT=my-data -t registry.example.org/my-data-geodata:1 .
-docker push registry.example.org/my-data-geodata:1
+docker build -f docs/kubernetes/Dockerfile --build-arg PROJECT=my-data -t registry.example.org/my-data-dataops:1 .
+docker push registry.example.org/my-data-dataops:1
 ```
 
 Leave `secrets.yaml` out of the image: logins come from Secrets. The refresh container uses your configops project's image, built the same way (configops's `docs/kubernetes.md`).
 
 ## 2. Secrets
 
-Each Secret the project names is mounted as a folder under `/etc/geodata/secrets/<secret>`, one file per key:
+Each Secret the project names is mounted as a folder under `/etc/dataops/secrets/<secret>`, one file per key:
 
 ```bash
 kubectl create secret generic database --from-literal=host=... --from-literal=port=5432 \
@@ -27,8 +27,8 @@ The hosts in them are as the pod reaches them: `<service>.<namespace>` for a dat
 ## 3. Run it
 
 ```bash
-kubectl apply -f geodata.yaml
-kubectl create job sync-now --from=cronjob/geodata-sync     # now, rather than tonight
+kubectl apply -f dataops.yaml
+kubectl create job sync-now --from=cronjob/geoserver-dataops     # now, rather than tonight
 kubectl logs job/sync-now -c sync                            # what was checked and loaded
 kubectl logs job/sync-now -c refresh                         # what GeoServer refreshed
 ```

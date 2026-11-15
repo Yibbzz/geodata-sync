@@ -4,9 +4,9 @@ import shutil
 
 import pytest
 
-import geodata_sync.sources.koordinates as koordinates
-from geodata_sync.sources import NotFound, SourceError
-from geodata_sync.sources.koordinates import Koordinates
+import geoserver_dataops.sources.koordinates as koordinates
+from geoserver_dataops.sources import NotFound, SourceError
+from geoserver_dataops.sources.koordinates import Koordinates
 from fake_koordinates import KoordinatesPortal, gpkg_zip
 from test_sync_integration import env, query, schemas, sync  # noqa: F401 (fixtures)
 
@@ -60,10 +60,10 @@ def test_an_export_is_asked_for_waited_on_and_downloaded_without_the_key(portal,
 @pytest.mark.integration
 def test_a_layer_loads_and_isnt_exported_again_until_a_new_version(portal, tmp_path, schemas, env, capsys, monkeypatch):
     live = schemas[0]
-    monkeypatch.setenv("GEODATA_LINZ_APIKEY", "s3cr3t")
+    monkeypatch.setenv("DATAOPS_LINZ_APIKEY", "s3cr3t")
     (tmp_path / "p").mkdir()
     (tmp_path / "p" / "project.yaml").write_text(f"""\
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: {{ name: t }}
 spec:
@@ -71,12 +71,12 @@ spec:
     connection: {{ secret: testdb }}
     schemas: {{ live: {live}, staging: {schemas[1]}, backup: {schemas[2]} }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: {{ name: linz }}
 spec: {{ type: koordinates, url: "{portal.url}", credentials: {{ secret: linz }} }}
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: {{ name: sites }}
 spec: {{ source: linz, product: "50772" }}

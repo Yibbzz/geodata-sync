@@ -1,7 +1,7 @@
 # The smallest real project: one dataset from data.gov.uk, loaded into PostGIS.
 # Loads in about a minute. See the README's quick start (compose.yaml starts the database);
 # examples/uk-basemap is the full example.
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata:
   name: quickstart
@@ -10,7 +10,7 @@ spec:
     connection: { secret: database }               # keys: host, port, database, username, password
   crs: EPSG:27700
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata:
   name: data-gov-uk
@@ -18,9 +18,9 @@ spec:
   type: ckan
   url: https://data.gov.uk
 ---
-# Surrey Heath conservation areas: `geodata discover data-gov-uk conservation-areas125`
+# Surrey Heath conservation areas: `dataops discover data-gov-uk conservation-areas125`
 # shows the package, its files and the layer inside.
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata:
   name: conservation-areas

@@ -152,7 +152,7 @@ class STAC:
                 raise SourceError(f"item {item['id']} has no asset '{key}' (it has: {known})")
             href = asset["href"]
             if urlparse(href).scheme not in ("http", "https"):
-                raise SourceError(f"item {item['id']}'s '{key}' is at {href}, not an http(s) address geodata can download")
+                raise SourceError(f"item {item['id']}'s '{key}' is at {href}, not an http(s) address dataops can download")
             name = PurePosixPath(urlparse(href).path).name or "asset"
             checksum = asset.get("file:checksum")
             parts.append(Download(format=asset.get("type") or "unknown", url=href, file_name=f"{i:04d}-{name}",

@@ -1,10 +1,10 @@
-# A GeoServer to read what geodata-sync loads, for the e2e tests (tests/test_e2e_geoserver.py).
+# A GeoServer to read what geoserver-dataops loads, for the e2e tests (tests/test_e2e_geoserver.py).
 # Profile cloud: GeoServer Cloud's gateway, REST, WFS and WCS services on one pgconfig catalog, kept
 # in step through RabbitMQ, as its own Kubernetes deployments run them. Profile standard: the official
 # GeoServer image. Both read the shared PostGIS database and the data folder (./data at /data), as in
 # production. Started by tests/e2e/up.sh [standard|standard-2]; the same setup, slimmed down, as
 # GeoServer ConfigOps's e2e tests.
-name: geodata-e2e
+name: dataops-e2e
 x-pgconfig: &pgconfig
   PGCONFIG_HOST: db
   PGCONFIG_PORT: "5432"

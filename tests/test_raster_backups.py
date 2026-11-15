@@ -1,6 +1,6 @@
-"""Raster backups (geodata_sync/raster.py, install): each dataset prunes only its own."""
+"""Raster backups (geoserver_dataops/raster.py, install): each dataset prunes only its own."""
 
-from geodata_sync import raster
+from geoserver_dataops import raster
 from test_raster import data  # noqa: F401 (fixture)
 
 

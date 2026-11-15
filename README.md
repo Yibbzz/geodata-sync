@@ -1,28 +1,28 @@
-<p align="center"><img src="docs/logo.svg" alt="geodata-sync" width="120"></p>
+<p align="center"><img src="docs/logo.svg" alt="GeoServer DataOps" width="120"></p>
 
-<h1 align="center">geodata-sync</h1>
+<h1 align="center">GeoServer DataOps</h1>
 
-<p align="center">Open GIS data loaded into PostGIS, and kept up to date, from YAML files.<br>Ready for <a href="https://github.com/geoserver/geoserver-cloud">GeoServer Cloud</a> and standard GeoServer to publish.</p>
+<p align="center">The data GeoServer publishes, loaded into PostGIS and kept up to date, from YAML files.<br>For <a href="https://github.com/geoserver/geoserver-cloud">GeoServer Cloud</a> and standard GeoServer, beside <a href="https://github.com/Yibbzz/geoserver-configops">GeoServer ConfigOps</a>.</p>
 
 <!-- badges -->![GeoServer Cloud 3.0.2.1](https://img.shields.io/badge/GeoServer_Cloud-3.0.2.1-brightgreen) ![GeoServer 3.0.2](https://img.shields.io/badge/GeoServer-3.0.2-brightgreen) ![GeoServer 2.28.6](https://img.shields.io/badge/GeoServer-2.28.6-brightgreen) ![PostGIS 18-3.7](https://img.shields.io/badge/PostGIS-18--3.7-blue)<!-- /badges -->
 
-<!-- tested-on -->Tested on **GeoServer Cloud 3.0.2.1**, **GeoServer 3.0.2** and **GeoServer 2.28.6**, with **PostGIS 18-3.7**: on every pull request each one publishes what `geodata sync` loaded and serves it back, before and after a reload, and a daily job (`.github/workflows/versions.yaml`) tries each new release.<!-- /tested-on -->
+<!-- tested-on -->Tested on **GeoServer Cloud 3.0.2.1**, **GeoServer 3.0.2** and **GeoServer 2.28.6**, with **PostGIS 18-3.7**: on every pull request each one publishes what `dataops sync` loaded and serves it back, before and after a reload, and a daily job (`.github/workflows/versions.yaml`) tries each new release.<!-- /tested-on -->
 
-`geodata` keeps the open datasets you name in PostGIS, each at its newest version:
+`dataops` keeps the open datasets you name in PostGIS, each at its newest version:
 
 - **Find** data in the places it is published, worldwide: ArcGIS services, CKAN, Socrata and OpenDataSoft portals, INSPIRE and GeoNetwork catalogues (CSW, OGC API Records), WFS and OGC API Features, STAC imagery catalogues, Overture Maps, OpenStreetMap (Geofabrik), New Zealand's Koordinates services, the Ordnance Survey, or plain links. `discover` lists what a source offers and the layers inside a download.
 - **Load** it safely: staged, checked (invalid geometries, row counts), then swapped in for the old tables in one transaction, which are kept as backups. A raster download becomes one Cloud-Optimised GeoTIFF.
 - **Keep it up to date.** Each dataset has a schedule; `sync`, run nightly, checks those that are due and loads only a new version.
 
-It only loads data. [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-configops) publishes the tables.
+It loads the data; [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-configops) configures GeoServer to publish it, and `configops refresh` brings GeoServer up to date after each load.
 
-> **Status: 0.x.** The file format may still change between releases.
+> **Status: 0.x.** The file format may still change between releases. Formerly **geodata-sync**: the command was `geodata`, the files' `apiVersion` `geodata/v1alpha1` and the variables `GEODATA_*`; [docs/development.md](docs/development.md#renamed-from-geodata-sync) says what to change.
 
 ## Install
 
 ```bash
-pip install geodata-sync                            # Python 3.10+, and GDAL's tools (apt install gdal-bin)
-docker run --rm ghcr.io/yibbzz/geodata-sync --help  # or the image, GDAL included
+pip install geoserver-dataops                            # Python 3.10+, and GDAL's tools (apt install gdal-bin)
+docker run --rm ghcr.io/yibbzz/geoserver-dataops --help  # or the image, GDAL included
 ```
 
 ## Example
@@ -30,7 +30,7 @@ docker run --rm ghcr.io/yibbzz/geodata-sync --help  # or the image, GDAL include
 [`examples/quickstart/project.yaml`](examples/quickstart/project.yaml): Surrey Heath's conservation areas, from data.gov.uk, checked monthly.
 
 ```yaml
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Project
 metadata: { name: quickstart }
 spec:
@@ -38,17 +38,17 @@ spec:
     connection: { secret: database }     # keys: host, port, database, username, password
   crs: EPSG:27700
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Source
 metadata: { name: data-gov-uk }
 spec: { type: ckan, url: https://data.gov.uk }
 ---
-apiVersion: geodata/v1alpha1
+apiVersion: dataops/v1alpha1
 kind: Dataset
 metadata: { name: conservation-areas }
 spec:
   source: data-gov-uk
-  product: conservation-areas125         # `geodata discover data-gov-uk --search "conservation areas"` finds it
+  product: conservation-areas125         # `dataops discover data-gov-uk --search "conservation areas"` finds it
   update: monthly
   tables:
     conservation_areas: {}               # the layer in the download; table conservation_areas_conservation_areas
@@ -61,13 +61,13 @@ $ cat > examples/quickstart/secrets.yaml <<'EOF'
 database: { host: localhost, port: "5433", database: postgres, username: postgres, password: postgres }
 EOF
 
-$ geodata sync -C examples/quickstart
+$ dataops sync -C examples/quickstart
   conservation-areas: loaded 2026-11-11 in 0s: data_layers.conservation_areas_conservation_areas (10 rows)
     note: 1 invalid geometry left out
-$ geodata status -C examples/quickstart
+$ dataops status -C examples/quickstart
   DATASET             UPDATE   LOADED      AT                ROWS  NEXT CHECK        LAST CHECK
   conservation-areas  monthly  2026-11-11  2026-11-13 08:51  10    2026-12-13 07:51  success
-$ geodata sync -C examples/quickstart
+$ dataops sync -C examples/quickstart
   conservation-areas: not due (monthly)
 ```
 
@@ -78,21 +78,21 @@ $ geodata sync -C examples/quickstart
 **Find a dataset** and the layers inside it:
 
 ```bash
-geodata discover os-downloads                                   # what a source type offers
-geodata discover data-gov-uk --search "flood zones" -C my-data  # search a Source of the project
-geodata discover data-gov-uk <product> -C my-data               # its files, and their layers
+dataops discover os-downloads                                   # what a source type offers
+dataops discover data-gov-uk --search "flood zones" -C my-data  # search a Source of the project
+dataops discover data-gov-uk <product> -C my-data               # its files, and their layers
 ```
 
-**Load now** rather than when due: `geodata sync -C my-data <dataset>`; `--force` loads even when the version hasn't changed.
+**Load now** rather than when due: `dataops sync -C my-data <dataset>`; `--force` loads even when the version hasn't changed.
 
 **Refresh GeoServer after a load.** `sync --loaded` lists what it loaded, and `configops refresh` works out those layers' bounds again and clears their cached tiles:
 
 ```bash
-geodata sync -C my-data --loaded loaded.txt
+dataops sync -C my-data --loaded loaded.txt
 configops refresh -C my-geoserver --from loaded.txt
 ```
 
-**Keep logins out of the files.** A file names a Secret (`connection: { secret: database }`); its value comes from a Kubernetes Secret, a `GEODATA_<SECRET>_<KEY>` environment variable or a git-ignored `secrets.yaml`. Credentials in addresses are masked in errors and the ingest log.
+**Keep logins out of the files.** A file names a Secret (`connection: { secret: database }`); its value comes from a Kubernetes Secret, a `DATAOPS_<SECRET>_<KEY>` environment variable or a git-ignored `secrets.yaml`. Credentials in addresses are masked in errors and the ingest log.
 
 **Run it in Kubernetes** as a nightly CronJob that loads, then refreshes GeoServer: [docs/kubernetes.md](docs/kubernetes.md).
 
@@ -103,13 +103,13 @@ configops refresh -C my-geoserver --from loaded.txt
 - **What reads the tables keeps working.** The new table gets the old one's grants, and views on it are moved across.
 - **One sync at a time.** A run takes a lock in PostgreSQL, so a nightly job and a person can't load through each other.
 - **Downloads aren't trusted.** GDAL may only open them as data formats, and what an archive unpacks to is limited.
-- **Checked before it runs.** `geodata validate` reads the files without a network; problems come out as `file:line`.
+- **Checked before it runs.** `dataops validate` reads the files without a network; problems come out as `file:line`.
 
 ## What to know
 
 - Big layers over WFS or OGC API Features don't load reliably: use a file download when there is one ([docs/sources-notes.md](docs/sources-notes.md)).
 - A WFS or OGC API Features source has no version to compare, so it is loaded in full each time it is due; so is an ArcGIS layer that doesn't report its last edit.
-- Overture reads GeoParquet with pyarrow: `pip install 'geodata-sync[overture]'` (the image has it). Koordinates needs an API key.
+- Overture reads GeoParquet with pyarrow: `pip install 'geoserver-dataops[overture]'` (the image has it). Koordinates needs an API key.
 - A materialized view on a live table stops its load: drop it before and create it again after.
 
 ## Documentation

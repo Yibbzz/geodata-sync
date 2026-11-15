@@ -67,7 +67,7 @@ def test_a_backup_that_cant_be_dropped_doesnt_fail_the_load(tmp_path, server, sc
 
 def test_a_busy_live_table_is_left_alone(tmp_path, server, schemas, env, capsys, monkeypatch):
     """The swap gives up rather than queue behind a long query, which would hold up every other reader."""
-    from geodata_sync import ingest
+    from geoserver_dataops import ingest
     live, staging, backup = schemas
     root = project(tmp_path, server, schemas)
     assert sync(root) == 0
