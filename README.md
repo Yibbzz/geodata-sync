@@ -1,6 +1,14 @@
-# geodata-sync
+<p align="center"><img src="docs/logo.svg" alt="geodata-sync" width="120"></p>
 
-Open GIS data loaded into PostGIS, and kept up to date, from YAML files. Say which datasets you want, where they come from and how often to check them; `geodata sync` downloads each new version, loads it into staging tables, checks it, backs up the old tables and swaps the new ones in, in one transaction.
+<h1 align="center">geodata-sync</h1>
+
+<p align="center">Open GIS data loaded into PostGIS, and kept up to date, from YAML files.<br>Ready for <a href="https://github.com/geoserver/geoserver-cloud">GeoServer Cloud</a> and standard GeoServer to publish.</p>
+
+![Tested on GeoServer Cloud 3.0.2.1](https://img.shields.io/badge/GeoServer_Cloud-3.0.2.1-brightgreen) ![Tested on GeoServer 3.0.2](https://img.shields.io/badge/GeoServer-3.0.2-brightgreen) ![Tested on GeoServer 2.28.6](https://img.shields.io/badge/GeoServer-2.28.6-brightgreen) ![PostGIS 18-3.7](https://img.shields.io/badge/PostGIS-18--3.7-blue)
+
+<!-- tested-on -->Tested on **GeoServer Cloud 3.0.2.1**, **GeoServer 3.0.2** and **GeoServer 2.28.6**, with **PostGIS 18-3.7**: every pull request loads a table and a Cloud-Optimised GeoTIFF, has each GeoServer publish them and serve them back through WFS and WCS, then loads new versions under the running GeoServer and checks it serves those ([`tests/test_e2e_geoserver.py`](tests/test_e2e_geoserver.py)).<!-- /tested-on -->
+
+Say which datasets you want, where they come from and how often to check them; `geodata sync` downloads each new version, loads it into staging tables, checks it, backs up the old tables and swaps the new ones in, in one transaction.
 
 - **Find data:** the Ordnance Survey's OpenData downloads, CKAN portals (data.gov.uk and many city, regional and national ones), WFS and OGC API Features services, or plain links. `geodata discover` lists what a source offers and the layers inside a download.
 - **Load it safely:** staging, invalid geometries left out, row counts checked, the old tables kept as backups; a load that fails changes nothing.
