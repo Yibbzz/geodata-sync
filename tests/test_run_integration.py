@@ -118,17 +118,16 @@ def test_no_database_at_all_marks_the_rest_not_checked(tmp_path, server, schemas
 
 
 def _connected_once(project, root, real=sync_module.database):
-    """The project's database, which can be connected to once: the first connect works, later ones don't."""
+    """The project's database, which takes the run's first connections (its work and its lock) and refuses any after."""
     db = real(project, root)
-    first = psycopg2.connect(host=db.host, port=db.port, dbname=db.database, user=db.username, password=db.password)
 
     class Once(type(db)):
-        used = False
+        made = 0
 
         def connect(self):
-            if Once.used:
+            if Once.made >= 2:
                 raise psycopg2.OperationalError("refused")
-            Once.used = True
-            return first
+            Once.made += 1
+            return psycopg2.connect(host=db.host, port=db.port, dbname=db.database, user=db.username, password=db.password)
 
     return Once(**db.__dict__)

@@ -241,9 +241,22 @@ def run(root: Path, names: list[str], force: bool = False, loaded_file: Path | N
     except psycopg2.OperationalError as e:
         raise SyncError(f"can't connect to the database at {db.host}:{db.port}: {str(e).strip().splitlines()[0]}", code=1) from None
 
+    try:
+        lock = ingest.hold_lock(db)
+    except psycopg2.Error as e:
+        conn.close()
+        raise SyncError(f"can't take the sync lock: {str(e).strip().splitlines()[0]}", code=1) from None
+    if lock is None:
+        conn.close()
+        raise SyncError(f"another `geodata sync` is loading into this database (staging schema {db.staging}); "
+                        "this run changed nothing", code=1)
+
     failures, everything_loaded = 0, []
     try:
         ingest.bootstrap(conn)
+        orphans = ingest.drop_orphans(conn, db)
+        if orphans:
+            print(f"note: dropped {len(orphans)} staging table(s) an interrupted run left: {', '.join(orphans)}", flush=True)
         pending = list(names or sorted(datasets))
         while pending:
             name = pending.pop(0)
@@ -275,6 +288,7 @@ def run(root: Path, names: list[str], force: bool = False, loaded_file: Path | N
     finally:
         if conn is not None:
             conn.close()
+        lock.close()
         if loaded_file is not None:
             Path(loaded_file).write_text("".join(f"{x}\n" for x in everything_loaded), encoding="utf-8")
     return 1 if failures else 0

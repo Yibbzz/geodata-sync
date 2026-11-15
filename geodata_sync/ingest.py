@@ -117,6 +117,42 @@ def suffixed(table: str, suffix: str) -> str:
     return f"{table[: 62 - len(suffix)]}_{suffix}"
 
 
+# The end of every staging table's name: _<YYYYmmdd_HHMMSS>_<6 hex digits> (staging_name)
+STAGING_TAG = "_[0-9]{8}_[0-9]{6}_[0-9a-f]{6}$"
+
+
+def hold_lock(db: Database):
+    """
+    A connection holding the lock that lets one sync at a time load through `db`'s staging schema,
+    or None if another run holds it. The lock is PostgreSQL's (an advisory lock), so it works across
+    machines and is let go when the connection closes, however the run ends.
+    """
+    conn = db.connect()
+    conn.autocommit = True
+    with conn.cursor() as cur:
+        cur.execute("SELECT pg_try_advisory_lock(hashtext('geodata-sync'), hashtext(%s))", (db.staging,))
+        if cur.fetchone()[0]:
+            return conn
+    conn.close()
+    return None
+
+
+def drop_orphans(conn, db: Database) -> list[str]:
+    """
+    Drop staging tables a run that was killed (out of memory, a node lost) left behind; returns their
+    names. Only call with the lock held: then no other run is loading, so any staging table is an orphan.
+    Only tables named as staging_name names them are touched.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = %s AND table_name ~ %s "
+                    "ORDER BY table_name", (db.staging, STAGING_TAG))
+        orphans = [row[0] for row in cur.fetchall()]
+        for name in orphans:
+            cur.execute(f'DROP TABLE IF EXISTS "{db.staging}"."{name}"')
+    conn.commit()
+    return orphans
+
+
 def staging_name(table: str) -> str:
     """
     A name for this load's staging table, unique to the load. ogr2ogr names
