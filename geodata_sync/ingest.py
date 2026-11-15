@@ -175,9 +175,12 @@ def bootstrap(conn) -> None:
 
 
 def last_load(conn, dataset: str) -> LastLoad | None:
+    """The version, checksum and tables of what is live: the last load, or a later check that found the same
+    data under a new version (a portal's metadata changed, its file didn't), so that one isn't downloaded again."""
     with conn.cursor() as cur:
         cur.execute(
-            f"SELECT version, sha256, tables FROM {LOG_TABLE} WHERE dataset_id = %s AND status = 'success' "
+            f"SELECT version, sha256, tables FROM {LOG_TABLE} WHERE dataset_id = %s AND status IN ('success', 'skipped') "
+            "AND tables IS NOT NULL "
             "ORDER BY finished_at DESC LIMIT 1",
             (dataset,),
         )

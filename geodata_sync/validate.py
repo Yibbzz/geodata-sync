@@ -16,8 +16,8 @@ from jsonschema.exceptions import best_match
 
 from .loader import Problem, Project, Resource, default_table
 
-SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis"}
-SOURCES_WITH_ADDRESSES = {"ckan", "ogc-api-features", "wfs", "arcgis"}  # need the Source's spec.url
+SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis", "stac"}
+SOURCES_WITH_ADDRESSES = {"ckan", "ogc-api-features", "wfs", "arcgis", "stac"}  # need the Source's spec.url
 SOURCES_WITH_KEYS = {"os-downloads", "ckan"}  # send the credentials secret's apiKey; the others send nothing
 
 
@@ -143,6 +143,12 @@ def check_references(project: Project) -> list[Problem]:
             problems.append(Problem(d.file, d.line(("spec",)), "spec.url: required for a url source", d.label))
         if kind != "url" and d.spec.get("url"):
             problems.append(Problem(d.file, d.line(("spec", "url")), f"spec.url: only used with a url source, not {kind}", d.label))
+        if kind == "stac":
+            for field, what in (("stac", "which items and file to load (bbox, asset)"), ("raster", "the raster file to make")):
+                if field not in d.spec:
+                    problems.append(Problem(d.file, d.line(("spec",)), f"spec.{field}: required for a stac source: {what}", d.label))
+        elif "stac" in d.spec:
+            problems.append(Problem(d.file, d.line(("spec", "stac")), f"spec.stac: only used with a stac source, not {kind}", d.label))
         if kind != "ckan" and d.spec.get("resource"):
             problems.append(Problem(d.file, d.line(("spec", "resource")), f"spec.resource: only used with a ckan source, not {kind}", d.label))
 

@@ -193,7 +193,8 @@
             "ckan",
             "ogc-api-features",
             "wfs",
-            "arcgis"
+            "arcgis",
+            "stac"
           ]
         },
         "credentials": {
@@ -202,7 +203,7 @@
         "url": {
           "type": "string",
           "pattern": "^https?://",
-          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, or an ArcGIS REST services directory"
+          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, or a STAC API"
         }
       }
     },
@@ -258,6 +259,36 @@
             "minRows": {
               "type": "integer",
               "minimum": 0
+            }
+          }
+        },
+        "stac": {
+          "type": "object",
+          "required": [
+            "bbox",
+            "asset"
+          ],
+          "additionalProperties": false,
+          "description": "which items of a STAC collection to load, and which of their files",
+          "properties": {
+            "bbox": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 4,
+              "maxItems": 4,
+              "description": "the area, in degrees: [west, south, east, north]"
+            },
+            "asset": {
+              "type": "string",
+              "minLength": 1,
+              "description": "which file of each item, by its key: `geodata discover` lists them"
+            },
+            "datetime": {
+              "type": "string",
+              "minLength": 1,
+              "description": "a time or range, as STAC writes it: 2024-06-01/2024-06-30, or 2024-01-01T00:00:00Z/.."
             }
           }
         },

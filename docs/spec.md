@@ -83,7 +83,7 @@ spec:
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `type` | yes | One of the types below |
-| `url` | for `ckan`, `ogc-api-features`, `wfs`, `arcgis` | The source's address. For CKAN, the portal (`https://data.gov.uk`); an address already inside `/api/` (such as `https://portal.example/api/3/action`) is used as given. For WFS, the service (`https://host/wfs`); request parameters copied with it (`?service=WFS&request=GetCapabilities`) are dropped, others (`?map=`) kept. For OGC API Features, the API's landing page; a collection's address is cut back to it. For ArcGIS, the services directory (`https://services.arcgis.com/<org>/arcgis/rest/services`), a folder in it, one service or one layer: `discover` lists the layers below it |
+| `url` | for `ckan`, `ogc-api-features`, `wfs`, `arcgis`, `stac` | The source's address. For CKAN, the portal (`https://data.gov.uk`); an address already inside `/api/` (such as `https://portal.example/api/3/action`) is used as given. For WFS, the service (`https://host/wfs`); request parameters copied with it (`?service=WFS&request=GetCapabilities`) are dropped, others (`?map=`) kept. For OGC API Features, the API's landing page; a collection's address is cut back to it. For ArcGIS, the services directory (`https://services.arcgis.com/<org>/arcgis/rest/services`), a folder in it, one service or one layer: `discover` lists the layers below it. For STAC, the API's landing page (`https://earth-search.aws.element84.com/v1`) |
 | `credentials.secret` | no | Secret with `apiKey`. For CKAN it is an API token, sent only to the portal, never to the servers its files are on. Not yet used by `wfs`, `ogc-api-features` or `arcgis`, which work with public services only so far |
 
 | `type` | Lists products (`discover`) | Needs a key | Status |
@@ -93,6 +93,7 @@ spec:
 | `ckan` (data.gov.uk and many city, regional and national portals) | yes, by search | no for public data | `discover` built |
 | `wfs` (versions 1.0 to 2.0) | yes: feature types | usually no | `discover` built |
 | `ogc-api-features` | yes: feature collections | usually no | `discover` built |
+| `stac` (imagery and elevation catalogues: Earth Search's Sentinel, Landsat and Copernicus DEM, Digital Earth Australia, USGS) | yes: collections, and the files (assets) of their items | no for public catalogues | built: rasters only; the files of the items in an area, mosaicked into one COG |
 | `arcgis` (ArcGIS Server and ArcGIS Online: much US, Canadian and Australian government data) | yes: the layers of its FeatureServer and MapServer services | no for public services | built: a layer's last edit is its version, so an unchanged layer isn't loaded again |
 
 Each type is a plug-in with two parts: list what's available, and fetch one product with its version. Adding a provider means adding one plug-in.
@@ -125,6 +126,9 @@ spec:
 | `tables` | no | every layer in the file | Which layers of the downloaded file to load, and as what. A service's one layer is named as `discover` lists it (an ArcGIS layer by its name, `Rivers`) |
 | `tables.<layer>.name` | no | `<dataset>_<layer>` with dashes as underscores | Table name in the live schema |
 | `tables.<layer>.crs` | no | from the file, else the project's `crs` | Override when the file doesn't declare its CRS |
+| `stac.bbox` | for `stac` | | The area, in degrees: `[west, south, east, north]` |
+| `stac.asset` | for `stac` | | Which file of each item, by its key (`data`, `visual`, `B04`): `geodata discover <source> <collection>` lists them |
+| `stac.datetime` | no | every time | A time or range, as STAC writes it (`2024-06-01/2024-06-30`). For a collection of repeated scenes (Sentinel-2), give one: every scene in it is mosaicked, the newest on top |
 | `validation.dropInvalidGeometries` | no | `true` | Leave out rows whose geometry PostGIS calls invalid |
 | `validation.minRows` | no | `1` | Fail the update (keep the old table) below this count |
 

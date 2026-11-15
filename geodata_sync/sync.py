@@ -9,6 +9,7 @@ ingest log, which is also what says when a dataset is next due.
 
 from __future__ import annotations
 
+import hashlib
 import sys
 import tempfile
 import time
@@ -111,7 +112,9 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
     spec = dataset.spec
     src = discover.resolve(spec["source"], root)
     raster_spec = spec.get("raster")
-    if raster_spec and src.type == "os-downloads":
+    if src.type == "stac":  # a collection's items in an area: the Dataset's stac options pick them
+        product: Product = src.client.selection(spec["product"], spec["stac"])
+    elif raster_spec and src.type == "os-downloads":
         product: Product = src.client.product(spec["product"], spec.get("resource"), raster=True)
     else:
         product = src.client.product(spec["url"] if src.type == "url" else spec["product"], spec.get("resource"))
@@ -120,7 +123,7 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
         raise ingest.LoadError(f"{product.id} has nothing geodata can load; `geodata discover` shows what it offers")
     last = ingest.last_load(conn, dataset.name)
     if not force and up_to_date(conn, db, dataset, last, product.version, None):
-        ingest.record(conn, dataset.name, product.version, chosen.format, "skipped", started, tables=last.tables)
+        ingest.record(conn, dataset.name, product.version, chosen.format, "skipped", started, sha=last.sha256, tables=last.tables)
         return f"{dataset.name}: up to date ({discover.version(product.version)})", []
 
     # End the transaction the lookups above began: a download can take hours, and a transaction left
@@ -180,13 +183,23 @@ def sync_raster(conn, dataset: Resource, src, product: Product, last, started: d
         return f"{dataset.name}: up to date ({discover.version(last.version)})", []
     with tempfile.TemporaryDirectory(prefix="geodata-sync-") as tmp:
         work = Path(tmp)
-        download = work / (Path(chosen.file_name).name if chosen.file_name else "download")
-        sha = ingest.download(src.client.download_url(chosen), download, chosen.md5)
+        if product.parts:  # several files, one raster: the digest of theirs stands for them
+            (work / "parts").mkdir()
+            downloads, hashes = [], []
+            for part in product.parts:
+                downloads.append(work / "parts" / Path(part.file_name).name)
+                hashes.append(ingest.download(src.client.download_url(part), downloads[-1], part.md5))
+            sha = hashlib.sha256("".join(hashes).encode()).hexdigest()
+        else:
+            downloads = [work / (Path(chosen.file_name).name if chosen.file_name else "download")]
+            sha = ingest.download(src.client.download_url(chosen), downloads[0], chosen.md5)
         if in_place and last.sha256 == sha:
-            ingest.record(conn, dataset.name, last.version, chosen.format, "skipped", started, sha=sha, tables=[path])
-            return f"{dataset.name}: up to date ({discover.version(last.version)})", []
+            # the same file under a new version: recorded, so the next check compares with this version
+            version = product.version or last.version
+            ingest.record(conn, dataset.name, version, chosen.format, "skipped", started, sha=sha, tables=[path])
+            return f"{dataset.name}: up to date (same file{'s' if product.parts else ''} as last time)", []
         t0 = time.monotonic()
-        pixels = raster.load(download, work, path, options.get("crs"), project_crs, project.spec.get("backups", 3), options.get("nodata"))
+        pixels = raster.load(downloads, work, path, options.get("crs"), project_crs, project.spec.get("backups", 3), options.get("nodata"))
     version = product.version or f"sha256:{sha[:16]}"
     ingest.record(conn, dataset.name, version, chosen.format, "success", started, rows=pixels, sha=sha, tables=[path])
     return (f"{dataset.name}: loaded {discover.version(version)} in {time.monotonic() - t0:.0f}s: "
