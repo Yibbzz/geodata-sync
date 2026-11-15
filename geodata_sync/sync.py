@@ -120,6 +120,9 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
         ingest.record(conn, dataset.name, product.version, chosen.format, "skipped", started, tables=last.tables)
         return f"{dataset.name}: up to date ({discover.version(product.version)})", []
 
+    # End the transaction the lookups above began: a download can take hours, and a transaction left
+    # open that long is ended by a server with idle_in_transaction_session_timeout, and holds back vacuum.
+    conn.rollback()
     validation = spec.get("validation") or {}
     project_crs = project.spec.get("crs") or DEFAULT_CRS
     if raster_spec:
@@ -138,6 +141,7 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
                 version = product.version or f"sha256:{sha[:16]}"
                 ingest.record(conn, dataset.name, version, chosen.format, "skipped", started, sha=sha, tables=last.tables)
                 return f"{dataset.name}: up to date (same file as last time)", []
+            conn.rollback()  # and the one that check began, while the file is unzipped and read
             found = ingest.file_layers(path, work)
         layers = plan_layers(dataset, found, project_crs)
         t0 = time.monotonic()
@@ -164,12 +168,16 @@ def sync_raster(conn, dataset: Resource, src, product: Product, last, started: d
     """Download a raster product and make it the dataset's COG on the data volume."""
     options, chosen = dataset.spec["raster"], product.chosen
     path = options["path"]
+    in_place = not force and last and last.tables == [path] and raster.live_path(path).exists()
+    # the source's version says it's unchanged: no need to download gigabytes to find the same file
+    if in_place and product.version and last.version == product.version:
+        ingest.record(conn, dataset.name, last.version, chosen.format, "skipped", started, sha=last.sha256, tables=[path])
+        return f"{dataset.name}: up to date ({discover.version(last.version)})", []
     with tempfile.TemporaryDirectory(prefix="geodata-sync-") as tmp:
         work = Path(tmp)
         download = work / (Path(chosen.file_name).name if chosen.file_name else "download")
         sha = ingest.download(src.client.download_url(chosen), download, chosen.md5)
-        if not force and last and last.tables == [path] and raster.live_path(path).exists() and \
-                ((product.version and last.version == product.version) or last.sha256 == sha):
+        if in_place and last.sha256 == sha:
             ingest.record(conn, dataset.name, last.version, chosen.format, "skipped", started, sha=sha, tables=[path])
             return f"{dataset.name}: up to date ({discover.version(last.version)})", []
         t0 = time.monotonic()
