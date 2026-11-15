@@ -199,7 +199,8 @@
             "csw",
             "socrata",
             "opendatasoft",
-            "overture"
+            "overture",
+            "geofabrik"
           ]
         },
         "credentials": {
