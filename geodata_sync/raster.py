@@ -20,11 +20,12 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from .ingest import LoadError, gdal_errors, stamp
+from .ingest import LoadError, check_unpacked_size, gdal_errors, stamp
 
 DATA_ENV = "GEODATA_DATA_DIR"
-RASTER_SUFFIXES = {".tif", ".tiff", ".asc", ".img", ".jp2", ".dem", ".bil", ".flt", ".vrt"}
+RASTER_SUFFIXES = {".tif", ".tiff", ".asc", ".img", ".jp2", ".dem", ".bil", ".flt"}
 BACKUPS = ".geodata-backups"
+MAX_ZIP_DEPTH = 4  # zips inside zips inside zips: OS goes two deep
 
 
 def data_root() -> Path:
@@ -35,26 +36,49 @@ def live_path(path: str) -> Path:
     return data_root() / path.strip("/")
 
 
+def refuse_pointers(rasters: list[Path]) -> None:
+    """
+    Refuse a "raster" that is really instructions to GDAL. GDAL picks a driver from a file's content,
+    and the formats that name other files or addresses as their source (VRT, WMS, tile indexes, STAC)
+    are XML or JSON: a VRT called tile.tif could have any local file read into the published COG.
+    No raster format read here starts with < or {.
+    """
+    for path in rasters:
+        with open(path, "rb") as f:
+            start = f.read(64).removeprefix(b"\xef\xbb\xbf").lstrip()
+        if start[:1] in (b"<", b"{"):
+            raise LoadError(f"{path.name} isn't raster data: it's an XML or JSON file that would point GDAL elsewhere")
+
+
 def unpack(download: Path, work: Path) -> list[Path]:
     """The raster files in a download: the file itself, or those in its zips (and zips in those)."""
     if download.suffix.lower() in RASTER_SUFFIXES:
+        refuse_pointers([download])
         return [download]
     if not zipfile.is_zipfile(download):
         raise LoadError(f"{download.name} is neither a raster nor a zip of rasters")
     out = work / "unpacked"
-    pending = [download]
+    pending, unpacked = [(download, 1)], 0
     while pending:
-        archive = pending.pop()
-        with zipfile.ZipFile(archive) as z:
+        archive, depth = pending.pop()
+        try:
+            z = zipfile.ZipFile(archive)
+        except zipfile.BadZipFile:
+            raise LoadError(f"{archive.name}, inside {download.name}, isn't a zip that can be read") from None
+        with z:
+            unpacked += sum(i.file_size for i in z.infolist())
+            check_unpacked_size(unpacked)
             for name in z.namelist():
                 if name.endswith("/") or ".." in Path(name).parts:
                     continue
                 target = out / archive.stem / name
                 if name.lower().endswith(".zip"):
+                    if depth >= MAX_ZIP_DEPTH:
+                        raise LoadError(f"{download.name} has zips nested more than {MAX_ZIP_DEPTH} deep")
                     target.parent.mkdir(parents=True, exist_ok=True)
                     with z.open(name) as src, open(target, "wb") as dst:
                         shutil.copyfileobj(src, dst)
-                    pending.append(target)
+                    pending.append((target, depth + 1))
                 elif Path(name).suffix.lower() in RASTER_SUFFIXES | {".prj", ".aux", ".xml", ".tfw", ".hdr"}:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     with z.open(name) as src, open(target, "wb") as dst:
@@ -62,6 +86,7 @@ def unpack(download: Path, work: Path) -> list[Path]:
     rasters = sorted(p for p in out.rglob("*") if p.suffix.lower() in RASTER_SUFFIXES and not p.name.endswith(".aux.xml"))
     if not rasters:
         raise LoadError(f"no rasters in {download.name} ({', '.join(sorted(RASTER_SUFFIXES))})")
+    refuse_pointers(rasters)
     return rasters
 
 

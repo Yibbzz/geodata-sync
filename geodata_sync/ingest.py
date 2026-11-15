@@ -50,6 +50,11 @@ ALTER TABLE {LOG_TABLE} ADD COLUMN IF NOT EXISTS tables TEXT;
 """
 
 
+# Most a download may unpack to, so a zip bomb can't fill the disk (GEODATA_MAX_UNPACKED_BYTES overrides)
+MAX_UNPACKED = 100 * 1000**3
+MAX_UNPACKED_ENV = "GEODATA_MAX_UNPACKED_BYTES"
+
+
 class LoadError(Exception):
     """A load failed in a way the user can act on; the message says how."""
 
@@ -188,11 +193,25 @@ def download(url: str, dest: Path, md5: str | None = None, session: requests.Ses
     return sha.hexdigest()
 
 
+def unpack_limit() -> int:
+    value = os.environ.get(MAX_UNPACKED_ENV, "")
+    return int(value) if value.isdigit() else MAX_UNPACKED
+
+
+def check_unpacked_size(size: int) -> None:
+    """Refuse an archive that would unpack to more than the limit. A zip's entries can't unpack to
+    more than the sizes it declares (zipfile stops there), so their sum is a true upper bound."""
+    if size > unpack_limit():
+        raise LoadError(f"the download would unpack to {size:,} bytes, more than the limit of {unpack_limit():,}; "
+                        f"if that is right for this dataset, raise {MAX_UNPACKED_ENV}")
+
+
 def file_layers(path: Path, work: Path) -> list[tuple[str, str, str | None]]:
     """(GDAL path, layer, CRS) of every layer in a downloaded file, unzipping it first."""
     if zipfile.is_zipfile(path):
         out = work / "extracted"
         with zipfile.ZipFile(path) as z:
+            check_unpacked_size(sum(i.file_size for i in z.infolist()))
             z.extractall(out)
             files = [str(out / f) for f in remote.data_files([i.filename for i in z.infolist() if not i.is_dir()])]
         if not files:
@@ -233,7 +252,7 @@ def load(db: Database, layer: Layer, staging: str) -> str:
     if shutil.which("ogr2ogr") is None:
         raise LoadError("loading needs GDAL's ogr2ogr on the PATH")
     cmd = [
-        "ogr2ogr", "-f", "PostgreSQL", db.ogr_target(), layer.source, layer.layer,
+        "ogr2ogr", "-f", "PostgreSQL", *remote.input_drivers(layer.source), db.ogr_target(), layer.source, layer.layer,
         "-nln", f"{db.staging}.{staging}",
         "-lco", "GEOMETRY_NAME=geom", "-lco", "PRECISION=NO",
         "-nlt", "PROMOTE_TO_MULTI", "-gt", "65536",

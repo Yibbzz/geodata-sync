@@ -135,3 +135,36 @@ spec: { source: os, product: OpenRoads, tables: { road_link: {} } }
     messages = [p.message for p in validate(load(tmp_path)) if p.severity == "error"]
     assert "spec.raster: a Dataset loads tables or a raster, not both" in messages
     assert "spec.raster.path: a.tif is also written by Dataset both" in messages
+
+
+def test_a_vrt_named_as_a_raster_is_refused(tmp_path):
+    """A VRT can name any local file as its pixels; GDAL would open one whatever it is called."""
+    path = tmp_path / "pack.zip"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("tile.tif", '﻿ <VRTDataset rasterXSize="1" rasterYSize="1"/>')
+    with pytest.raises(LoadError, match="tile.tif isn't raster data"):
+        raster.unpack(path, tmp_path)
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("mosaic.vrt", "<VRTDataset/>")
+    with pytest.raises(LoadError, match="no rasters"):
+        raster.unpack(path, tmp_path / "second")
+
+
+def test_zips_nested_too_deep_or_unpacking_too_large(tmp_path, monkeypatch):
+    path = tmp_path / "0.zip"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("t.asc", grid(0, 1))
+    for i in range(1, raster.MAX_ZIP_DEPTH + 1):
+        outer = tmp_path / f"{i}.zip"
+        with zipfile.ZipFile(outer, "w") as z:
+            z.write(path, path.name)
+        path = outer
+    with pytest.raises(LoadError, match="nested more than"):
+        raster.unpack(path, tmp_path / "deep")
+
+    bomb = tmp_path / "bomb.zip"
+    with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("big.asc", "0 " * 500_000)
+    monkeypatch.setenv("GEODATA_MAX_UNPACKED_BYTES", "100000")
+    with pytest.raises(LoadError, match="more than the limit of 100,000"):
+        raster.unpack(bomb, tmp_path / "bomb")
