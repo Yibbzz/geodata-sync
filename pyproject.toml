@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "geoserver-dataops"
-version = "0.1.0"
+version = "0.2.0"
 description = "The data GeoServer publishes, loaded into PostGIS and kept up to date from YAML files: ArcGIS, CKAN, STAC, Overture, OpenStreetMap, WFS, OGC API and more"
 readme = "README.md"
 license = "MIT"
