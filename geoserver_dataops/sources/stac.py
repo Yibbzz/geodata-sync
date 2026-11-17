@@ -25,6 +25,9 @@ MAX_ITEMS = 500  # more files than this is too big an area for one COG: a smalle
 MAX_PAGES = 50  # of /collections
 GEOJSON = "application/geo+json, application/json;q=0.9"
 RASTER_TYPES = ("image/tiff", "image/jp2", "application/x-hdf")
+PLANETARY_COMPUTER = "planetarycomputer.microsoft.com"
+SIGN = f"https://{PLANETARY_COMPUTER}/api/sas/v1/sign"
+AZURE_BLOBS = ".blob.core.windows.net"
 
 
 def https_href(asset: dict) -> str:
@@ -181,4 +184,15 @@ class STAC:
         return p
 
     def download_url(self, download: Download) -> str:
-        return download.url
+        """The file's address. Microsoft's Planetary Computer serves its files from Azure storage that
+        refuses plain requests (409): each is signed first, with a token good for about an hour."""
+        if urlparse(self.url).hostname != PLANETARY_COMPUTER or not (urlparse(download.url).hostname or "").endswith(AZURE_BLOBS):
+            return download.url
+        try:
+            r = self.session.get(SIGN, params={"href": download.url}, timeout=TIMEOUT)
+            href = r.json().get("href") if r.status_code == 200 else None
+        except (requests.RequestException, ValueError, AttributeError):
+            href = None
+        if not href:
+            raise SourceError(f"the Planetary Computer wouldn't sign {download.url} for download; try again later")
+        return href

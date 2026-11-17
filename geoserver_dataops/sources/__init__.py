@@ -103,12 +103,14 @@ def matches(product: Product, search: str | None) -> bool:
 
 def source_types() -> dict[str, type]:
     from .arcgis import ArcGIS
+    from .atom import Atom
     from .catalogue import CSW, OGCAPIRecords
     from .ckan import CKAN
     from .geofabrik import Geofabrik
     from .koordinates import Koordinates
     from .ogcapi import OGCAPIFeatures
     from .opendata import OpenDataSoft, Socrata
+    from .overpass import Overpass
     from .overture import Overture
     from .stac import STAC
     from .os_downloads import OSDownloads
@@ -118,4 +120,4 @@ def source_types() -> dict[str, type]:
     return {"os-downloads": OSDownloads, "ckan": CKAN, "url": URL, "wfs": WFS, "ogc-api-features": OGCAPIFeatures, "arcgis": ArcGIS, "stac": STAC,
             "ogc-api-records": OGCAPIRecords, "csw": CSW, "socrata": Socrata, "opendatasoft": OpenDataSoft,
             "overture": Overture, "geofabrik": Geofabrik,
-            "koordinates": Koordinates}
+            "koordinates": Koordinates, "atom": Atom, "overpass": Overpass}

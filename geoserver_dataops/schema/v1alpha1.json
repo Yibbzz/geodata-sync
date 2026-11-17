@@ -201,7 +201,9 @@
             "opendatasoft",
             "overture",
             "geofabrik",
-            "koordinates"
+            "koordinates",
+            "atom",
+            "overpass"
           ]
         },
         "credentials": {
@@ -210,7 +212,7 @@
         "url": {
           "type": "string",
           "pattern": "^https?://",
-          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, a catalogue (OGC API Records, CSW), a Socrata, OpenDataSoft or Koordinates portal"
+          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, a catalogue (OGC API Records, CSW), a Socrata, OpenDataSoft or Koordinates portal, an INSPIRE Atom service feed, an Overpass API instance"
         }
       }
     },
@@ -276,6 +278,25 @@
           ],
           "additionalProperties": false,
           "description": "the area of an Overture type to load",
+          "properties": {
+            "bbox": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 4,
+              "maxItems": 4,
+              "description": "the area, in degrees: [west, south, east, north]"
+            }
+          }
+        },
+        "overpass": {
+          "type": "object",
+          "required": [
+            "bbox"
+          ],
+          "additionalProperties": false,
+          "description": "the area to ask Overpass for",
           "properties": {
             "bbox": {
               "type": "array",
