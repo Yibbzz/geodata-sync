@@ -167,6 +167,7 @@ def version(v: str | None) -> str:
     """A date-time version (CKAN's last change) shown as its date."""
     if not v:
         return "-"
+    v = str(v)
     return v[:10] if len(v) > 10 and v[4:5] == "-" and v[10:11] == "T" else v
 
 

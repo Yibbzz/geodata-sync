@@ -11,7 +11,9 @@ ArcGIS Hub's search (…/api/search/v1) is an OGC API Records catalogue too.
 
 from __future__ import annotations
 
+import re
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 from urllib.parse import unquote, urlparse
 
 import requests
@@ -25,6 +27,39 @@ DEFAULT_LIMIT = 20
 GEOJSON = "application/geo+json, application/json;q=0.9"
 # Link relations that point at the data rather than at web pages about it
 DATA_RELS = {"enclosure", "download", "data", "item", "alternate", "service", "related", ""}
+
+
+def when(value) -> str | None:
+    """A record's time as text. ArcGIS Hub gives milliseconds since 1970 (1794926649000), not a date."""
+    if isinstance(value, bool) or value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        seconds = value / 1000 if abs(value) > 1e11 else value  # milliseconds, else seconds
+        try:
+            return datetime.fromtimestamp(seconds, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        except (OverflowError, OSError, ValueError):
+            return str(value)
+    return str(value)
+
+
+ARCGIS_ITEM_DATA = "https://www.arcgis.com/sharing/rest/content/items/{id}/data"
+SUFFIXES = {"GeoPackage": ".gpkg", "GeoJSON": ".geojson", "KML": ".kml", "FlatGeobuf": ".fgb"}  # else a zip
+
+
+def hub_downloads(record: dict, props: dict) -> list[Download]:
+    """ArcGIS Hub's records link to nothing: the data is an ArcGIS Online item. Its `url` is the service it
+    publishes (a FeatureServer: the arcgis source type reads it); an item that is a file (`type`: GeoJson,
+    Shapefile, File Geodatabase) is downloaded from ArcGIS Online by its ID."""
+    found = []
+    if str(props.get("url") or "").startswith(("http://", "https://")):
+        found.append(link_download(props["url"], props.get("type"), props.get("title") or "", props["url"]))
+    ident = str(record.get("id") or "")
+    label = classify(props.get("type"))
+    if label and re.fullmatch(r"[0-9a-f]{32}", ident):
+        d = link_download(ARCGIS_ITEM_DATA.format(id=ident), props.get("type"), props.get("title") or "", ident)
+        d.file_name = f"{ident}{SUFFIXES.get(label, '.zip')}"
+        found.append(d)
+    return found
 
 
 def link_download(href: str, fmt: str | None = None, title: str = "", ident: str = "") -> Download:
@@ -129,9 +164,11 @@ class OGCAPIRecords(_Catalogue):
                                    link.get("href", ""))
                      for link in links if isinstance(link, dict) and link.get("href")
                      and (link.get("rel") or "") in DATA_RELS]
+        if not any(d.loadable for d in downloads):
+            downloads += hub_downloads(record, props)
         return Product(
             id=str(record.get("id")), name=props.get("title") or str(record.get("id")),
-            version=props.get("updated") or props.get("modified") or props.get("created"),
+            version=when(props.get("updated") or props.get("modified") or props.get("created")),
             downloads=downloads, description=props.get("description") or "")
 
     def products(self, search: str | None = None, limit: int | None = None) -> Listing:
@@ -168,8 +205,11 @@ def parse(xml: bytes, url: str) -> ET.Element:
 
 def csw_product(record: ET.Element) -> Product:
     def text(path: str) -> str:
+        """An element's text on one line. GeoNetwork writes each of a record's languages on its own line of
+        the one element, often the same words again: each different line once, joined by " / "."""
         found = record.find(path, NS)
-        return (found.text or "").strip() if found is not None else ""
+        lines = [" ".join(line.split()) for line in (found.text or "").splitlines()] if found is not None else []
+        return " / ".join(dict.fromkeys(line for line in lines if line))
 
     ident = text("dc:identifier")
     downloads = []
