@@ -135,3 +135,35 @@ spec: { source: web, url: "https://x.example/a.zip", stac: { bbox: [0, 0, 1], as
     assert "spec.stac: required for a stac source: which items and file to load (bbox, asset)" in messages
     assert "spec.stac: only used with a stac source, not url" in messages
     assert any(m.startswith("spec.stac.bbox:") for m in messages)  # three numbers, not four
+
+
+class FakeSigner:
+    """The Planetary Computer's signing API: GET sign?href=... gives the address with a token."""
+
+    def __init__(self, status=200):
+        self.status, self.asked = status, []
+
+    def get(self, url, params=None, **kwargs):
+        self.asked.append((url, params))
+        status, href = self.status, f"{params['href']}?sig=token"
+
+        class Answer:
+            status_code = status
+
+            def json(self):
+                return {"href": href}
+        return Answer()
+
+
+def test_the_planetary_computers_files_are_signed_and_no_others():
+    from geoserver_dataops.sources import Download
+    pc = STAC(url="https://planetarycomputer.microsoft.com/api/stac/v1", session=FakeSigner())
+    blob = Download(format="COG", url="https://ai4edataeuwest.blob.core.windows.net/esa-worldcover/a.tif")
+    assert pc.download_url(blob) == f"{blob.url}?sig=token"
+    assert pc.session.asked == [("https://planetarycomputer.microsoft.com/api/sas/v1/sign", {"href": blob.url})]
+    elsewhere = Download(format="COG", url="https://sentinel-cogs.s3.us-west-2.amazonaws.com/a.tif")
+    assert pc.download_url(elsewhere) == elsewhere.url  # not on its storage: as it is
+    other = STAC(url="https://earth-search.aws.element84.com/v1", session=FakeSigner())
+    assert other.download_url(blob) == blob.url and not other.session.asked
+    with pytest.raises(SourceError, match="wouldn't sign"):
+        STAC(url="https://planetarycomputer.microsoft.com/api/stac/v1", session=FakeSigner(503)).download_url(blob)

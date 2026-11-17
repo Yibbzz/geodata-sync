@@ -14,7 +14,7 @@ Tested on **GeoServer Cloud 3.0.2.1**, **GeoServer 3.0.2** and **GeoServer 2.28.
 
 `dataops` keeps the open datasets you name in PostGIS, each at its newest version:
 
-- **Find** data in the places it is published, worldwide: ArcGIS services, CKAN, Socrata and OpenDataSoft portals, INSPIRE and GeoNetwork catalogues (CSW, OGC API Records), WFS and OGC API Features, STAC imagery catalogues, Overture Maps, OpenStreetMap (Geofabrik), New Zealand's Koordinates services, the Ordnance Survey, or plain links. `discover` lists what a source offers and the layers inside a download.
+- **Find** data in the places it is published, worldwide: ArcGIS services, CKAN, Socrata and OpenDataSoft portals, INSPIRE Atom download services and INSPIRE and GeoNetwork catalogues (CSW, OGC API Records), WFS and OGC API Features, STAC imagery catalogues (Earth Search, Microsoft's Planetary Computer), Overture Maps, OpenStreetMap (Geofabrik's extracts, or features by tag through Overpass), New Zealand's Koordinates services, the Ordnance Survey, or plain links. `discover` lists what a source offers and the layers inside a download.
 - **Load** it safely: staged, checked (invalid geometries, row counts), then swapped in for the old tables in one transaction, which are kept as backups. A raster download becomes one Cloud-Optimised GeoTIFF.
 - **Keep it up to date.** Each dataset has a schedule; `sync`, run nightly, checks those that are due and loads only a new version.
 
