@@ -1,10 +1,12 @@
 """The ogc-api-records and csw source types, against a fake catalogue that speaks both."""
 
+import xml.etree.ElementTree as ET
+
 import pytest
 
 from geoserver_dataops.cli import main
 from geoserver_dataops.sources import NotFound, SourceError
-from geoserver_dataops.sources.catalogue import CSW, OGCAPIRecords
+from geoserver_dataops.sources.catalogue import CSW, NS, OGCAPIRecords, csw_product, when
 from fake_catalogue import CatalogueServer
 
 
@@ -67,3 +69,44 @@ def test_discover_suggests_how_to_read_a_records_service(server, capsys, tmp_pat
     assert main(["discover", "csw", "parcels", "--url", f"{server.base}/csw", "-C", str(tmp_path), "--no-layers"]) == 0
     out = capsys.readouterr().out
     assert "discover it: dataops discover arcgis --url https://gis.example/arcgis/rest/services/Parcels/FeatureServer/0" in out
+
+
+def test_a_time_in_milliseconds_is_a_date():
+    """ArcGIS Hub's records give `modified` as milliseconds since 1970; discover printed it with len() and failed."""
+    assert when(1794926649000) == "2026-11-17T14:44:09Z"
+    assert when(1794926649) == "2026-11-17T14:44:09Z"
+    assert when("2026-11-04") == "2026-11-04"
+    assert when(None) is None and when("") is None
+
+
+def test_a_record_in_milliseconds_is_listed(server, monkeypatch, capsys, tmp_path):
+    real = OGCAPIRecords._product
+    monkeypatch.setattr(OGCAPIRecords, "_product", lambda self, r: real(self, {**r, "properties": {
+        **{k: v for k, v in (r.get("properties") or {}).items() if k not in ("updated", "modified", "created")},
+        "modified": 1794926649000}}))
+    assert main(["discover", "ogc-api-records", "--url", f"{server.base}/ogc", "-C", str(tmp_path)]) == 0
+    assert "2026-11-17" in capsys.readouterr().out
+
+
+def test_a_geonetwork_title_in_several_languages_is_one_line():
+    """GeoNetwork writes each language of a title on its own line of dc:title, often the same words again."""
+    record = ET.fromstring(
+        f'<csw:Record xmlns:csw="{NS["csw"]}" xmlns:dc="{NS["dc"]}"><dc:identifier>r1</dc:identifier>'
+        "<dc:title>Forstreviere\r\n   \r\n      Forstreviere\n  Forest districts  </dc:title></csw:Record>")
+    assert csw_product(record).name == "Forstreviere / Forest districts"
+
+
+def test_an_arcgis_hub_record_is_its_item(server, monkeypatch):
+    """ArcGIS Hub's records link to nothing: a file item is downloaded from ArcGIS Online by its ID, and a
+    service item's `url` is listed as the service to discover."""
+    hub = {"id": "8da5c3ebcc014486a61709ca8e6bfdbb", "links": [{"rel": "self", "href": "https://hub.example/x"}],
+           "properties": {"title": "Parks", "type": "GeoJson", "modified": 1794926649000, "url": None}}
+    p = OGCAPIRecords(url=f"{server.base}/ogc")._product(hub)
+    assert p.version == "2026-11-17T14:44:09Z"
+    [d] = [d for d in p.downloads if d.loadable]
+    assert (d.format, d.file_name) == ("GeoJSON", "8da5c3ebcc014486a61709ca8e6bfdbb.geojson")
+    assert d.url == "https://www.arcgis.com/sharing/rest/content/items/8da5c3ebcc014486a61709ca8e6bfdbb/data"
+    service = {"id": "ff8b2bcabffa4982861ef8e97bed7645_7", "properties": {
+        "title": "Parks", "type": "Feature Service", "url": "https://services1.arcgis.com/o/arcgis/rest/services/Parks/FeatureServer"}}
+    p = OGCAPIRecords(url=f"{server.base}/ogc")._product(service)
+    assert [(d.format, d.loadable) for d in p.downloads] == [("ArcGIS REST", False)]

@@ -7,7 +7,7 @@ import pytest
 from geoserver_dataops.cli import main
 from geoserver_dataops.loader import load
 from geoserver_dataops.sources import NotFound, SourceError
-from geoserver_dataops.sources.stac import MAX_ITEMS, STAC, md5_of
+from geoserver_dataops.sources.stac import MAX_ITEMS, STAC, https_href, md5_of
 from geoserver_dataops.validate import validate
 from fake_stac import STACServer
 
@@ -73,6 +73,21 @@ def test_only_http_files_are_downloaded(server):
     server.item = lambda i: {**real(i), "assets": {"data": {"href": "file:///etc/passwd", "type": "image/tiff"}}}
     with pytest.raises(SourceError, match="not an http"):
         STAC(url=server.url).selection("dem", EVERYTHING)
+
+
+def test_a_public_s3_file_is_downloaded_over_https(server):
+    """Earth Search gives Copernicus DEM's files as s3://bucket/key: AWS serves them at the bucket's https address."""
+    real = server.item
+    server.item = lambda i: {**real(i), "assets": {"data": {"href": "s3://copernicus-dem-90m/N52/dem.tif", "type": "image/tiff"}}}
+    parts = STAC(url=server.url).selection("dem", EVERYTHING).parts
+    assert {p.url for p in parts} == {"https://copernicus-dem-90m.s3.amazonaws.com/N52/dem.tif"}
+
+
+def test_an_https_alternate_is_preferred_to_the_bucket():
+    asset = {"href": "s3://bucket/a.tif", "alternate": {"s3": {"href": "s3://bucket/a.tif"}, "https": {"href": "https://cdn.example/a.tif"}}}
+    assert https_href(asset) == "https://cdn.example/a.tif"
+    assert https_href({"href": "https://host/a.tif"}) == "https://host/a.tif"
+    assert https_href({"href": "file:///etc/passwd"}) == "file:///etc/passwd"  # still refused by selection
 
 
 def test_md5_comes_out_of_a_multihash():

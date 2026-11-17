@@ -27,6 +27,22 @@ GEOJSON = "application/geo+json, application/json;q=0.9"
 RASTER_TYPES = ("image/tiff", "image/jp2", "application/x-hdf")
 
 
+def https_href(asset: dict) -> str:
+    """An asset's address to download over http(s). Some catalogues give a public S3 bucket's file as
+    s3://bucket/key (Earth Search's Copernicus DEM): an https alternate when the asset lists one
+    (STAC's alternate-assets extension), else the bucket's own https address, which AWS serves the same file at."""
+    href = asset["href"]
+    if urlparse(href).scheme in ("http", "https"):
+        return href
+    for alternate in (asset.get("alternate") or {}).values():
+        if isinstance(alternate, dict) and urlparse(alternate.get("href") or "").scheme in ("http", "https"):
+            return alternate["href"]
+    parsed = urlparse(href)
+    if parsed.scheme == "s3" and parsed.netloc:
+        return f"https://{parsed.netloc}.s3.amazonaws.com{parsed.path}"
+    return href
+
+
 def is_raster(asset: dict) -> bool:
     kind = (asset.get("type") or "").lower()
     return kind.startswith(RASTER_TYPES) or "data" in (asset.get("roles") or []) and kind.startswith("image/")
@@ -150,7 +166,7 @@ class STAC:
             if not asset or not asset.get("href"):
                 known = ", ".join(sorted(item.get("assets") or {}))
                 raise SourceError(f"item {item['id']} has no asset '{key}' (it has: {known})")
-            href = asset["href"]
+            href = https_href(asset)
             if urlparse(href).scheme not in ("http", "https"):
                 raise SourceError(f"item {item['id']}'s '{key}' is at {href}, not an http(s) address dataops can download")
             name = PurePosixPath(urlparse(href).path).name or "asset"
