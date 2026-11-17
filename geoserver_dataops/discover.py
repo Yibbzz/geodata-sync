@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 import shlex
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 from . import remote, secrets
 from .loader import load
@@ -51,13 +53,15 @@ def resolve(name: str, root: Path, url: str | None = None) -> ResolvedSource:
         secret = (source.spec.get("credentials") or {}).get("secret")
         if secret:
             api_key = secrets.lookup(secret, API_KEY, root)
-            if api_key is None:
+            if api_key is None and "credentials" not in inspect.signature(types[stype]).parameters:
                 print(
                     f"dataops: note: secret {secret} (key {API_KEY}) isn't set "
                     f"(${secrets.env_name(secret, API_KEY)} or secrets.yaml); trying without a key",
                     file=sys.stderr,
                 )
-        c = client(types[stype], api_key, url or source.spec.get("url"))
+        c = client(types[stype], api_key, url or source.spec.get("url"),
+                   credentials=(lambda key, s=secret: secrets.lookup(s, key, root) if s else None),
+                   options=source.spec.get("options") or {})
         return ResolvedSource(name, stype, c, command(name, c, url))
     if name in types:
         c = client(types[name], None, url)
@@ -77,9 +81,13 @@ def command(name: str, c, url: str | None) -> str:
     return f"dataops discover {name} --url {shlex.quote(address)}"
 
 
-def client(source_type: type, api_key: str | None, url: str | None):
+def client(source_type: type, api_key: str | None, url: str | None, credentials=None, options: dict | None = None):
+    """The source type's client. A type whose constructor takes `credentials` (a function: a key of the
+    Source's secret -> its value) or `options` (the Source's spec.options) is given them."""
+    accepts = inspect.signature(source_type).parameters
+    extra = {k: v for k, v in (("credentials", credentials), ("options", options or {})) if k in accepts}
     try:
-        return source_type(api_key=api_key, url=url)
+        return source_type(api_key=api_key, url=url, **extra)
     except SourceError as e:
         raise DiscoverError(str(e), code=2) from None
 
@@ -134,7 +142,13 @@ def product_layers(src: ResolvedSource, product: Product, use_cache: bool = True
             "a large file can take a minute or two...",
             file=sys.stderr,
         )
-        layers = remote.url_layers(src.client.download_url(d), file_name=d.file_name)
+        address = src.client.download_url(d)
+        if address.startswith("file://"):  # a file in a mounted folder: read where it is
+            local = Path(urlparse(address).path)
+            with open(local, "rb") as f:
+                layers = remote.archive_layers(f, str(local))
+        else:
+            layers = remote.url_layers(address, file_name=d.file_name)
     save_layers(path, layers)
     return layers
 

@@ -237,8 +237,9 @@ def url_layers(url: str, session: requests.Session | None = None, file_name: str
                 raise RemoteError(f"{e}, and the file is too large to fetch whole for a look ({e.size:,} bytes)") from None
             print("The server sends whole files only; downloading it to a temporary folder to read it...", file=sys.stderr)
             with tempfile.TemporaryDirectory(prefix="dataops-") as tmp:
+                # The download's own name, as sync saves it: GDAL names a single file's layer after it
                 suffix = Path(file_name or urlparse(url).path).suffix
-                path = fetch(url, session, Path(tmp) / f"download{suffix}")
+                path = fetch(url, session, Path(tmp) / (Path(file_name).name if file_name else f"download{suffix}"))
                 with open(path, "rb") as f:
                     return archive_layers(f, str(path))
     except requests.RequestException as e:

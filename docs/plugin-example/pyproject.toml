@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dataops-usgs-earthquakes"
+version = "0.1.0"
+description = "An example source type for GeoServer DataOps: the USGS earthquake catalogue"
+requires-python = ">=3.11"
+dependencies = ["geoserver-dataops>=0.3"]
+
+[tool.setuptools]
+py-modules = ["dataops_usgs_earthquakes"]
+
+# The line that makes it a dataops source type: <type name> = <module>:<class>
+[project.entry-points."geoserver_dataops.sources"]
+usgs-earthquakes = "dataops_usgs_earthquakes:Earthquakes"

@@ -101,10 +101,35 @@ def matches(product: Product, search: str | None) -> bool:
     return all(word in text for word in search.lower().split())
 
 
+PLUGINS = "geoserver_dataops.sources"  # the entry point group a package registers its own source types in
+
+
+def plugin_types() -> dict[str, type]:
+    """Source types other packages add: an entry point in the group PLUGINS, `<type name> = module:Class`
+    (docs/plugins.md). One that can't be loaded is left out with a note, so it can't stop the built-in types."""
+    import sys
+    from importlib.metadata import entry_points
+
+    found = {}
+    for ep in entry_points(group=PLUGINS):
+        try:
+            found[ep.name] = ep.load()
+        except Exception as e:  # noqa: BLE001 - another package's code: any failure is its own
+            print(f"dataops: note: source type {ep.name} (from {ep.value}) couldn't be loaded: {type(e).__name__}: {e}",
+                  file=sys.stderr)
+    return found
+
+
 def source_types() -> dict[str, type]:
+    """Every source type: the built-in ones, then plugins (which can't replace a built-in one)."""
+    return {**plugin_types(), **built_in_types()}
+
+
+def built_in_types() -> dict[str, type]:
     from .arcgis import ArcGIS
     from .atom import Atom
     from .catalogue import CSW, OGCAPIRecords
+    from .files import Files
     from .ckan import CKAN
     from .geofabrik import Geofabrik
     from .koordinates import Koordinates
@@ -120,4 +145,4 @@ def source_types() -> dict[str, type]:
     return {"os-downloads": OSDownloads, "ckan": CKAN, "url": URL, "wfs": WFS, "ogc-api-features": OGCAPIFeatures, "arcgis": ArcGIS, "stac": STAC,
             "ogc-api-records": OGCAPIRecords, "csw": CSW, "socrata": Socrata, "opendatasoft": OpenDataSoft,
             "overture": Overture, "geofabrik": Geofabrik,
-            "koordinates": Koordinates, "atom": Atom, "overpass": Overpass}
+            "koordinates": Koordinates, "atom": Atom, "overpass": Overpass, "files": Files}
