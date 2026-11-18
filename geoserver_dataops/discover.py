@@ -8,12 +8,14 @@ import json
 import os
 import shlex
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
 from . import remote, secrets
 from .loader import load
+from .patterns import is_pattern, pattern_stem
 from .sources import Download, NotFound, Product, SourceError, source_types
 from .sources.formats import SERVICE_TYPES, service_address
 
@@ -147,8 +149,17 @@ def product_layers(src: ResolvedSource, product: Product, use_cache: bool = True
             local = Path(urlparse(address).path)
             with open(local, "rb") as f:
                 layers = remote.archive_layers(f, str(local))
+        elif not address.startswith(("http://", "https://")) and hasattr(src.client, "fetch"):
+            # SFTP, FTP: no reading in ranges, so the file is fetched to a temporary folder first
+            with tempfile.TemporaryDirectory(prefix="dataops-") as tmp:
+                local = Path(tmp) / (d.file_name or "download")
+                src.client.fetch(d, local)
+                with open(local, "rb") as f:
+                    layers = remote.archive_layers(f, str(local))
         else:
             layers = remote.url_layers(address, file_name=d.file_name)
+    if len(layers) == 1 and is_pattern(product.id):  # named as sync names it: after the pattern, not this delivery
+        layers[0].name = pattern_stem(product.id)
     save_layers(path, layers)
     return layers
 

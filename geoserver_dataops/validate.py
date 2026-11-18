@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import difflib
 import json
+import re
 from importlib import resources as package_files
 
 from jsonschema import Draft202012Validator
@@ -22,7 +23,7 @@ SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arc
 SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads", "overture", "geofabrik", "overpass"}
 SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture", "geofabrik", "overpass"}  # a mirror, another Overpass instance
 SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw", "geofabrik", "atom"}  # products with several downloads to pick from  # need the Source's spec.url
-FILE_SCHEMES = ("file://", "s3://", "gs://", "az://")
+FILE_SCHEMES = ("file://", "s3://", "gs://", "az://", "sftp://", "ftp://", "ftps://", "/")
 SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft", "koordinates", "files"}
 SOURCES_NEEDING_KEYS = {"koordinates"}  # send the credentials secret's apiKey; the others send nothing
 
@@ -135,9 +136,11 @@ def check_references(project: Project) -> list[Problem]:
                     f"; plugins installed: {', '.join(sorted(plugins))}" if plugins else "; no plugin source types are installed")
                 problems.append(Problem(s.file, s.line(("spec", "type")), f"spec.type: no source type {kind!r}{hint}", s.label))
             continue  # a plugin's type: what it needs is its own business
-        if kind == "files" and s.spec.get("url") and not str(s.spec["url"]).startswith(FILE_SCHEMES):
-            problems.append(Problem(s.file, s.line(("spec", "url")), "spec.url: a files source is a folder or bucket: "
-                                    "file:///mnt/drop/, s3://bucket/prefix/, gs://bucket/prefix/ or az://account/container/prefix/", s.label))
+        if kind == "files" and s.spec.get("url") and not (str(s.spec["url"]).startswith(FILE_SCHEMES)
+                                                          or re.match(r"^[A-Za-z]:[\\/]", str(s.spec["url"]))):
+            problems.append(Problem(s.file, s.line(("spec", "url")), "spec.url: a files source is a folder, bucket or server: "
+                                    "/mnt/drop/, s3://bucket/prefix/, gs://bucket/prefix/, az://account/container/prefix/, "
+                                    "sftp://user@host/path/ or ftp://host/path/", s.label))
         if kind != "files" and str(s.spec.get("url") or "https://").split("://")[0] not in ("http", "https"):
             problems.append(Problem(s.file, s.line(("spec", "url")), f"spec.url: a {kind} source's address is http(s)://", s.label))
         if kind != "files" and s.spec.get("options"):

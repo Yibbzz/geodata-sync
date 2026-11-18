@@ -25,6 +25,23 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # files sources on servers (tests/test_servers.py)
+      sftp:
+        image: atmoz/sftp@sha256:c5fb9e4beb8b7054a4c0b65c5e11df47cc20da95ad6002e88aecff62bab06372  # alpine
+        env:
+          SFTP_USERS: drop:dropPass123:1001::upload
+        ports:
+          - 52222:22
+      ftp:
+        image: delfer/alpine-ftp-server@sha256:b27013e7436cea343826ba7edb77aa3a8b2d22df14e366b82d10a3b0b5ecc880
+        env:
+          USERS: drop|dropPass123
+          ADDRESS: 127.0.0.1
+          MIN_PORT: '21000'
+          MAX_PORT: '21010'
+        ports:
+          - 52121:21
+          - 21000-21010:21000-21010
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -34,13 +51,15 @@ jobs:
         run: tests/ci/install-gdal.sh
       - name: Install Python dependencies
         run: pip install -e '.[dev]'
-      - name: Run tests, a real-PostGIS sync among them
+      - name: Run tests, a real-PostGIS sync and real SFTP and FTP servers among them
         env:
           TEST_DB_HOST: localhost
           TEST_DB_PORT: '5432'
           TEST_DB_NAME: gis
           TEST_DB_USER: postgres
           TEST_DB_PASSWORD: postgres
+          TEST_SFTP_PORT: '52222'
+          TEST_FTP_PORT: '52121'
         run: pytest
       - name: Validate the example projects
         run: for p in examples/*/; do dataops validate "$p" || exit 1; done

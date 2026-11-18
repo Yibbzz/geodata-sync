@@ -10,7 +10,6 @@ ingest log, which is also what says when a dataset is next due.
 from __future__ import annotations
 
 import hashlib
-import re
 import sys
 import tempfile
 import time
@@ -20,6 +19,7 @@ from pathlib import Path
 import psycopg2
 import requests
 
+from .patterns import is_pattern, pattern_stem
 from . import discover, ingest, raster, remote, schedule, secrets
 from .loader import Project, Resource, default_table, load
 from .sources import Product, SourceError
@@ -57,17 +57,6 @@ def wanted_tables(dataset: Resource) -> dict[str, dict] | None:
     """`tables`: layer -> options, or None for every layer."""
     tables = dataset.spec.get("tables")
     return {layer: options or {} for layer, options in tables.items()} if tables else None
-
-
-def is_pattern(product) -> bool:
-    return isinstance(product, str) and any(c in product for c in "*?[")
-
-
-def pattern_stem(pattern: str) -> str:
-    """A pattern's name without its wildcards and extension: roads_*.zip -> roads."""
-    name = re.sub(r"\.[A-Za-z0-9]+$", "", pattern.rsplit("/", 1)[-1])  # the file name, no extension
-    name = re.sub(r"\[[^\]]*\]|[*?]", "", name)  # no wildcards
-    return re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_") or "data"
 
 
 def plan_layers(dataset: Resource, found: list[tuple[str, str, str | None]], project_crs: str,

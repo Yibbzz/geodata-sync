@@ -11,7 +11,7 @@ import pytest
 
 from geoserver_dataops.sources import NotFound, SourceError
 from geoserver_dataops.sources.files import Files, presign
-from geoserver_dataops.sync import pattern_stem
+from geoserver_dataops.patterns import pattern_stem
 from fake_buckets import AzureServer, S3Server
 from test_sync_integration import env, schemas, sync, tables_in  # noqa: F401 (fixtures)
 
@@ -65,8 +65,8 @@ def test_a_files_version_changes_when_it_is_replaced(tmp_path):
 def test_a_folder_that_isnt_there_says_so(tmp_path):
     with pytest.raises(SourceError, match="is the volume or share mounted"):
         Files(url=(tmp_path / "missing").as_uri())
-    with pytest.raises(SourceError, match="reads file://, s3://, gs://, az://"):
-        Files(url="ftp://example.org/x/")
+    with pytest.raises(SourceError, match="reads file://, s3://, gs://, az://, sftp://, ftp://, ftps://"):
+        Files(url="webdav://example.org/x/")
 
 
 def test_a_pattern_names_the_table_not_the_delivery():
