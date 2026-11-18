@@ -13,11 +13,11 @@ Tested on **GeoServer Cloud 3.0.2.1**, **GeoServer 3.0.2** and **GeoServer 2.28.
 <!-- /tested-on -->
 
 <!-- sources -->
-**Sources**: each checked against its real service [every day](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) (a small sync, or a listing where products are large), so a provider changing its API shows here as failing. The `type` a Source names for each is in [docs/spec.md](docs/spec.md#source). The cloud identities are only tested against fakes of the clouds' endpoints, and Koordinates needs a key the checks don't have.
+**Sources**: each checked against its real service [every day](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) (a small sync, or a listing where products are large), so a provider changing its API shows here as failing. The `type` a Source names for each is in [docs/spec.md](docs/spec.md#source). Some can't be checked without an account: the cloud identities and the logins to NASA Earthdata and Copernicus Data Space are tested against fakes of their endpoints, and Koordinates needs a key.
 
 Portals and catalogues: [![CKAN](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fckan.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Socrata](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fsocrata.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![OpenDataSoft](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fopendatasoft.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![ArcGIS](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Farcgis.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![ArcGIS Hub](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Farcgis-hub.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![data.europa.eu](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fdata-europa.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![GeoNode](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fgeonode.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![CSW](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fcsw.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![INSPIRE Atom](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fatom.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Ordnance Survey](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fos-downloads.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) ![Koordinates: not tested (needs a key)](https://img.shields.io/badge/Koordinates-not_tested_%28needs_a_key%29-lightgrey)<br>
 Web services: [![WFS](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fwfs.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![OGC API Features](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fogc-api-features.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml)<br>
-Imagery and world map data: [![STAC, Earth Search](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fstac-earth-search.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![STAC, Planetary Computer](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fstac-planetary-computer.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Overture Maps](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Foverture.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Geofabrik](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fgeofabrik.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Overpass](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Foverpass.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![USGS National Map, elevation](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fusgs.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![USGS National Map, vector](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fusgs-vector.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml)<br>
+Imagery and world map data: [![STAC, Earth Search](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fstac-earth-search.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![STAC, Planetary Computer](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fstac-planetary-computer.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Overture Maps](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Foverture.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Geofabrik](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fgeofabrik.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Overpass](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Foverpass.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![USGS National Map, elevation](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fusgs.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![USGS National Map, vector](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fusgs-vector.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) ![STAC, NASA Earthdata: login: fakes only](https://img.shields.io/badge/STAC%2C_NASA_Earthdata-login%3A_fakes_only-yellow) ![STAC, Copernicus Data Space: login: fakes only](https://img.shields.io/badge/STAC%2C_Copernicus_Data_Space-login%3A_fakes_only-yellow)<br>
 Files: [![A link](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Furl.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![A folder or share](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Ffiles-folder.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![SFTP](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Ffiles-sftp.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![FTP](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Ffiles-ftp.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Amazon S3](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Ffiles-s3.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Google Cloud Storage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Ffiles-gcs.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![Azure Blob Storage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Ffiles-azure.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) ![AWS, Google and Azure identities: fakes only](https://img.shields.io/badge/AWS%2C_Google_and_Azure_identities-fakes_only-yellow)<br>
 Databases: [![PostgreSQL / PostGIS](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fdatabase-postgresql.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml) [![MySQL / MariaDB](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYibbzz%2Fgeoserver-dataops%2Fbadges%2Fsources%2Fdatabase-mysql.json)](https://github.com/Yibbzz/geoserver-dataops/actions/workflows/sources.yaml)<br>
 Anything else: [![Your own: plugin](https://img.shields.io/badge/Your_own-plugin-blue)](docs/plugins.md)
@@ -37,7 +37,8 @@ It loads the data; [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-con
 
 ```bash
 pip install geoserver-dataops                            # Python 3.10+, and GDAL's tools (apt install gdal-bin)
-docker run --rm ghcr.io/yibbzz/geoserver-dataops --help  # or the image, GDAL included
+pip install 'geoserver-dataops[overture,sftp,google]'    # with what Overture, SFTP and Google service accounts need
+docker run --rm ghcr.io/yibbzz/geoserver-dataops --help  # or the image: GDAL and all of those included
 ```
 
 ## Example
@@ -100,6 +101,37 @@ dataops discover data-gov-uk <product> -C my-data               # its files, and
 
 **Load now** rather than when due: `dataops sync -C my-data <dataset>`; `--force` loads even when the version hasn't changed.
 
+**Load your own data**: a table in another database, the files in a folder, an SFTP server or a bucket. A pattern
+loads the newest of a supplier's deliveries into the same table each time:
+
+```yaml
+apiVersion: dataops/v1alpha1
+kind: Source
+metadata: { name: assets }
+spec: { type: database, url: "postgresql://db.example.org:5432/assets", credentials: { secret: assets } }
+---
+apiVersion: dataops/v1alpha1
+kind: Source
+metadata: { name: supplier }
+spec:
+  type: files
+  url: sftp://drop@files.supplier.example/deliveries/   # or /mnt/share/, s3://bucket/prefix/, gs://, az://
+  credentials: { secret: supplier }
+  options: { hostKey: "SHA256:..." }                    # ssh-keyscan files.supplier.example | ssh-keygen -lf -
+---
+apiVersion: dataops/v1alpha1
+kind: Dataset
+metadata: { name: roads }
+spec: { source: supplier, product: "roads_*.zip", update: daily }
+---
+apiVersion: dataops/v1alpha1
+kind: Dataset
+metadata: { name: valves }
+spec: { source: assets, product: network.valves, update: "0 * * * *" }   # hourly; copied only when the table changed
+```
+
+**Add a source of your own** (your organisation's API) as a [plugin](docs/plugins.md): a class in a package installed beside dataops.
+
 **Refresh GeoServer after a load.** `sync --loaded` lists what it loaded, and `configops refresh` works out those layers' bounds again and clears their cached tiles:
 
 ```bash
@@ -107,7 +139,7 @@ dataops sync -C my-data --loaded loaded.txt
 configops refresh -C my-geoserver --from loaded.txt
 ```
 
-**Keep logins out of the files.** A file names a Secret (`connection: { secret: database }`); its value comes from a Kubernetes Secret, a `DATAOPS_<SECRET>_<KEY>` environment variable or a git-ignored `secrets.yaml`. Credentials in addresses are masked in errors and the ingest log.
+**Keep logins out of the files.** A file names a Secret (`connection: { secret: database }`); its value comes from a Kubernetes Secret, a `DATAOPS_<SECRET>_<KEY>` environment variable or a git-ignored `secrets.yaml`. Buckets can use the cloud's own identity instead (IRSA, EKS Pod Identity, GKE and AKS workload identity, instance roles and managed identities). Credentials in addresses and connection strings are masked in errors and the ingest log.
 
 **Run it in Kubernetes** as a nightly CronJob that loads, then refreshes GeoServer: [docs/kubernetes.md](docs/kubernetes.md).
 
@@ -119,12 +151,15 @@ configops refresh -C my-geoserver --from loaded.txt
 - **One sync at a time.** A run takes a lock in PostgreSQL, so a nightly job and a person can't load through each other.
 - **Downloads aren't trusted.** GDAL may only open them as data formats, and what an archive unpacks to is limited.
 - **Checked before it runs.** `dataops validate` reads the files without a network; problems come out as `file:line`.
+- **Only what's needed is fetched.** Cloud-Optimised GeoTIFFs (USGS elevation) are read in place for the area alone, a selection is cropped to its area, and an unchanged file or table isn't fetched again.
+- **Every source is checked daily** against its real service, so a provider changing its API shows on the badges above.
 
 ## What to know
 
 - Big layers over WFS or OGC API Features don't load reliably: use a file download when there is one ([docs/sources-notes.md](docs/sources-notes.md)).
 - A WFS or OGC API Features source has no version to compare, so it is loaded in full each time it is due; so is an ArcGIS layer that doesn't report its last edit.
-- Overture reads GeoParquet with pyarrow: `pip install 'geoserver-dataops[overture]'` (the image has it). Koordinates needs an API key.
+- Koordinates needs an API key; NASA Earthdata a token; Copernicus Data Space an account. GeoNode is read for its public datasets.
+- A database source reads PostgreSQL/PostGIS and MySQL/MariaDB; SQL Server and Oracle need client libraries the image doesn't have. A view, which has no version, is copied each time it is due.
 - A materialized view on a live table stops its load: drop it before and create it again after.
 
 ## Documentation
@@ -134,6 +169,7 @@ configops refresh -C my-geoserver --from loaded.txt
 | [docs/spec.md](docs/spec.md) | The file format and every command |
 | [docs/kubernetes.md](docs/kubernetes.md) | Running it nightly in a cluster |
 | [docs/sources-notes.md](docs/sources-notes.md) | What we learned about the sources |
+| [docs/plugins.md](docs/plugins.md) | Adding a source type of your own |
 | [docs/development.md](docs/development.md) | Tests, CI, new GeoServer versions, releasing |
 
 ## Licence
