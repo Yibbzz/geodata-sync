@@ -220,7 +220,7 @@
         },
         "options": {
           "type": "object",
-          "description": "Settings of the source type: for files, endpoint (an S3-compatible store's address), region and pathStyle, or an SFTP server's hostKey; for stac, login, tokenUrl, clientId, tokenHosts, and endpoint and region for s3:// files; a plugin's own",
+          "description": "Settings of the source type: for files, endpoint (an S3-compatible store's address), region and pathStyle, or an SFTP server's hostKey; for stac, login, tokenUrl, clientId, tokenHosts, and endpoint and region for s3:// files; for arcgis, tokenUrl (an Enterprise portal's generateToken); a plugin's own",
           "properties": {
             "endpoint": {
               "type": "string",

@@ -25,7 +25,7 @@ SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture", "geofabrik", "overpass", "data-eu
 SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw", "geofabrik", "atom", "data-europa", "geonode"}  # products with several downloads to pick from  # need the Source's spec.url
 DATABASE_SCHEMES = ("postgresql", "postgres", "postgis", "mysql", "mariadb")
 FILE_SCHEMES = ("file://", "s3://", "gs://", "az://", "sftp://", "ftp://", "ftps://", "/")
-SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft", "koordinates", "files", "database", "stac"}
+SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft", "koordinates", "files", "database", "stac", "arcgis"}
 SOURCES_NEEDING_KEYS = {"koordinates"}  # send the credentials secret's apiKey; the others send nothing
 
 
@@ -147,7 +147,7 @@ def check_references(project: Project) -> list[Problem]:
                                     "postgresql://host:5432/dbname or mysql://host:3306/dbname", s.label))
         if kind not in ("files", "database") and str(s.spec.get("url") or "https://").split("://")[0] not in ("http", "https"):
             problems.append(Problem(s.file, s.line(("spec", "url")), f"spec.url: a {kind} source's address is http(s)://", s.label))
-        if kind not in ("files", "stac") and s.spec.get("options"):
+        if kind not in ("files", "stac", "arcgis") and s.spec.get("options"):
             problems.append(Problem(s.file, s.line(("spec", "options")), f"spec.options: not used by a {kind} source", s.label, "warning"))
         if kind in SOURCES_WITH_ADDRESSES and not s.spec.get("url"):
             problems.append(Problem(s.file, s.line(("spec",)), f"spec.url: a {kind} source needs its address, e.g. https://data.gov.uk", s.label))

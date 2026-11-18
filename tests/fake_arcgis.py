@@ -13,6 +13,7 @@ PAGE = 10  # the server's maxRecordCount
 class ArcGISServer:
     def __init__(self, rivers: int = 25, edited: int | None = 1_760_000_000_000):
         self.rivers, self.edited, self.requests = rivers, edited, []
+        self.required_token = None  # set: the Hydro service needs this token, which the token endpoint gives user1/pw1
         server = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -23,6 +24,18 @@ class ArcGISServer:
                 data = json.dumps(body).encode()
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def do_POST(self):
+                form = dict(urllib.parse.parse_qsl(self.rfile.read(int(self.headers["Content-Length"])).decode()))
+                server.requests.append(self.path)
+                ok = self.path == "/arcgis/tokens/generateToken" and (form.get("username"), form.get("password")) == ("user1", "pw1")
+                body = {"token": server.required_token, "expires": 0} if ok else \
+                    {"error": {"code": 400, "message": "Unable to generate token.", "details": ["Invalid username or password."]}}
+                data = json.dumps(body).encode()
+                self.send_response(200)
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -61,8 +74,15 @@ class ArcGISServer:
 
     def answer(self, path: str, q: dict) -> tuple[int, dict]:
         base = "/arcgis/rest/services"
+        if path == "/arcgis/rest/info":
+            return 200, {"authInfo": {"isTokenBasedSecurity": True, "tokenServicesUrl": self.root.replace("/rest/services", "/tokens/")}}
         if not path.startswith(base):
             return 404, {}
+        if self.required_token and path.startswith(f"{base}/Hydro"):
+            if not q.get("token"):
+                return 200, {"error": {"code": 499, "message": "Token Required", "details": []}}
+            if q["token"] != self.required_token:
+                return 200, {"error": {"code": 498, "message": "Invalid Token", "details": []}}
         rest = path[len(base):].strip("/")
         if rest == "":
             return 200, {"currentVersion": 11.3, "folders": ["Hydro"],
