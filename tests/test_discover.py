@@ -459,7 +459,7 @@ def test_file_geodatabase_folders_are_datasets():
     ("", "https://x/a", "application/geo+json", "", "GeoJSON"),
     ("HTML", "https://x/page", None, "", None),
     ("WMS", "https://x/wms", None, "", None),
-    ("CSV", "https://x/a.csv", None, "", None),
+    ("CSV", "https://x/a.csv", None, "", "CSV"),  # a spreadsheet: points by its coordinate columns,
 ])
 def test_classify(fmt, url, mimetype, name, expected):
     assert classify(fmt, url, mimetype, name) == expected

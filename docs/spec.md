@@ -135,7 +135,7 @@ spec:
 | --- | --- | --- | --- |
 | `source` | yes | | Name of a Source |
 | `product` | for `os-downloads`, `ckan`, `wfs`, `ogc-api-features`, `arcgis`, `atom`, `overpass` | | Product, package or collection ID at the source; for `arcgis`, the layer's path below the services directory (`Hydrography/Rivers/FeatureServer/0`) |
-| `url` | for `url` | | File to download (zip, GeoPackage, GeoJSON, CSV, Shapefile) |
+| `url` | for `url` | | File to download (zip, GeoPackage, GeoJSON, Shapefile, or a spreadsheet: CSV, Excel, ODS) |
 | `resource` | no; `ckan`, `ogc-api-records`, `csw` and `atom` | the best loadable file | Which file of the package or record: a CKAN resource ID or name, or a record link's title or address, as `discover` lists them. Packages often hold the same data in several formats, or several files |
 | `update` | no | `manual` | When `sync` checks for a new version |
 | `tables` | no | every layer in the file | Which layers of the downloaded file to load, and as what. A service's one layer is named as `discover` lists it (an ArcGIS layer by its name, `Rivers`) |
@@ -143,6 +143,7 @@ spec:
 | `tables.<layer>.crs` | no | from the file, else the project's `crs` | Override when the file doesn't declare its CRS |
 | `overture.bbox` | for `overture` | | The area, in degrees: `[west, south, east, north]`. Rows whose bounding box touches it are loaded (a road crossing its edge, whole). Structures (`names`, `sources`) become `json` columns, lists arrays. Only the files' footers and the row groups in the area are read, but a type in many files (buildings) takes a minute or so to look through |
 | `overpass.bbox` | for `overpass` | | The area, in degrees: `[west, south, east, north]` |
+| `points` | no | found by name | A spreadsheet's coordinate columns (CSV, Excel, ODS from any source): `{ x, y, crs }` or `{ wkt, crs }`. Without it, columns named lon/lng/longitude and lat/latitude are found (as WGS84), then easting/northing and x/y (as the project's `crs`), then wkt/geometry/the_geom, whatever their case. Each sheet of a workbook is a layer (named after the file when it has one sheet), its first row the header. A sheet without coordinates loads as a table without geometry |
 | `usgs.bbox`, `usgs.format` | `bbox` for `usgs` | | The area, in degrees, and the format (`GeoTIFF`, `GeoPackage`, `Shapefile`, `FileGDB`) when the dataset comes in several |
 | `options` | no | | Settings a plugin's source type reads for this Dataset (docs/plugins.md) |
 | `stac.bbox` | for `stac` | | The area, in degrees: `[west, south, east, north]`. The items covering it are mosaicked and the result is cropped to it, whatever the rasters' CRS |

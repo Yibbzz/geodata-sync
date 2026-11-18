@@ -446,6 +446,29 @@
               "description": "the format, when the dataset comes in several: GeoTIFF, GeoPackage, Shapefile, FileGDB"
             }
           }
+        },
+        "points": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "a spreadsheet's (CSV, Excel, ODS) coordinate columns, when their names aren't found by themselves: x and y, or wkt; and their CRS",
+          "properties": {
+            "x": {
+              "type": "string",
+              "minLength": 1
+            },
+            "y": {
+              "type": "string",
+              "minLength": 1
+            },
+            "wkt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "crs": {
+              "type": "string",
+              "pattern": "^[A-Za-z]+:[0-9]+$"
+            }
+          }
         }
       }
     }

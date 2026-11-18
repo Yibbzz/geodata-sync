@@ -20,6 +20,7 @@ import psycopg2
 import requests
 
 from .patterns import is_pattern, pattern_stem
+from . import spreadsheet
 from . import discover, ingest, raster, remote, schedule, secrets
 from .loader import Project, Resource, default_table, load
 from .sources import Product, SourceError
@@ -78,12 +79,20 @@ def plan_layers(dataset: Resource, found: list[tuple[str, str, str | None]], pro
     for layer in chosen:
         source, file_crs = by_name[layer]
         options = (wanted or {}).get(layer, {})
+        open_options, sheet_crs = [], None
+        if spreadsheet.is_csv(source):  # a spreadsheet: its coordinate columns, and their CRS
+            try:
+                open_options, sheet_crs, _ = spreadsheet.points(Path(source), dataset.spec.get("points"), project_crs)
+            except ValueError as e:
+                raise ingest.LoadError(str(e)) from None
         layers.append(ingest.Layer(
             source=source, layer=layer,
             table=options.get("name") or default_table(dataset.name, layer),
-            # a CRS the Dataset gives wins; otherwise assign the project's only when the file has none
-            crs=options.get("crs") or (None if file_crs else project_crs),
+            # a CRS the Dataset gives wins; then a spreadsheet's (lon/lat: WGS84); else the project's, only when
+            # the file has none
+            crs=options.get("crs") or sheet_crs or (None if file_crs or spreadsheet.is_csv(source) else project_crs),
             gdal_layer=(gdal_names or {}).get(layer),
+            open_options=open_options,
         ))
     tables = [x.table for x in layers]
     clashes = sorted({t for t in tables if tables.count(t) > 1})

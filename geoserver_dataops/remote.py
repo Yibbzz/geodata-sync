@@ -30,7 +30,7 @@ from .secrets import redact
 
 # Data files GDAL can list layers from, by extension. Shapefile parts other
 # than .shp, and docs, are left out.
-DATA_EXTENSIONS = (".gpkg", ".shp", ".gml", ".tab", ".geojson", ".json", ".csv", ".kml", ".fgb", ".pbf")
+DATA_EXTENSIONS = (".gpkg", ".shp", ".gml", ".tab", ".geojson", ".json", ".csv", ".kml", ".fgb", ".pbf", ".tsv", ".xlsx", ".xls", ".ods")
 
 # Formats whose feature count means reading the whole file
 NO_COUNT_EXTENSIONS = (".gml", ".csv", ".geojson", ".json", ".kml")
@@ -40,7 +40,7 @@ NO_COUNT_EXTENSIONS = (".gml", ".csv", ".geojson", ".json", ".kml")
 # really an OGR VRT can name any local file, or a database, as its source, and what it reads
 # would be loaded into a table. Naming the drivers stops GDAL trying those.
 FILE_DRIVERS = ("GPKG", "ESRI Shapefile", "GML", "MapInfo File", "GeoJSON", "GeoJSONSeq", "ESRIJSON", "TopoJSON",
-                "CSV", "KML", "LIBKML", "FlatGeobuf", "OpenFileGDB", "OSM")
+                "CSV", "KML", "LIBKML", "FlatGeobuf", "OpenFileGDB", "OSM", "XLSX", "XLS", "ODS")
 SERVICE_DRIVERS = {"WFS:": "WFS", "OAPIF:": "OAPIF", "ESRIJSON:": "ESRIJSON", "PG:": "PostgreSQL", "MYSQL:": "MySQL"}
 
 TIMEOUT = 60
@@ -165,6 +165,9 @@ def ogrinfo(path: str, layer: str | None = None) -> list[dict]:
     if shutil.which("ogrinfo") is None:
         raise RemoteError("reading layers needs GDAL's ogrinfo (3.7 or later) on the PATH")
     args = ["ogrinfo", "-ro", "-so", "-json", "-noextent", *input_drivers(path)]
+    if path.lower().endswith((".csv", ".tsv")):  # a CSV's points, by its coordinate columns (spreadsheet.py)
+        from .spreadsheet import DEFAULT_OPEN
+        args += [arg for option in DEFAULT_OPEN for arg in ("-oo", option)]
     if path.lower().endswith(NO_COUNT_EXTENSIONS):
         args.append("-nocount")
     env = {**GDAL_ENV, **os.environ}
