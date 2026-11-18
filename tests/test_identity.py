@@ -21,10 +21,11 @@ ENV = ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_W
 
 
 @pytest.fixture(autouse=True)
-def clean_env(monkeypatch):
-    """None of the machine's own cloud settings: each test sets what it means to."""
+def clean_env(monkeypatch, tmp_path):
+    """None of the machine's own cloud settings, nor a gcloud login: each test sets what it means to."""
     for name in ENV:
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("CLOUDSDK_CONFIG", str(tmp_path / "no-gcloud"))
 
 
 class Clouds:
@@ -72,6 +73,18 @@ class Clouds:
                     return self.answer(200, {"AccessKeyId": "key1", "SecretAccessKey": "secret1", "Token": "session1"})
                 if url.path == "/google/token":
                     return self.answer(200 if clouds.jwt_ok(form.get("assertion", "")) else 400, {"access_token": "google-token"})
+                if url.path == "/google/refresh" and form.get("grant_type") == "refresh_token":
+                    ok = (form.get("refresh_token"), form.get("client_id")) == ("refresh1", "gcloud-client")
+                    return self.answer(200 if ok else 400, {"access_token": "user-token"})
+                if url.path == "/oidc":  # as GitHub Actions hands out its OIDC token
+                    ok = self.headers.get("Authorization") == "Bearer actions-request-token"
+                    return self.answer(200 if ok else 401, {"value": "github-oidc-jwt"})
+                if url.path == "/v1/token" and form.get("grant_type") == "urn:ietf:params:oauth:grant-type:token-exchange":
+                    ok = form.get("subject_token") in ("github-oidc-jwt", "file-oidc-jwt") and form.get("audience", "").startswith("//iam.googleapis.com/")
+                    return self.answer(200 if ok else 400, {"access_token": f"federated-{form.get('subject_token')}"})
+                if url.path.endswith(":generateAccessToken"):
+                    ok = self.headers.get("Authorization", "").startswith("Bearer federated-")
+                    return self.answer(200 if ok else 403, {"accessToken": "impersonated-token"})
                 if url.path == "/computeMetadata/v1/instance/service-accounts/default/token":
                     ok = self.headers.get("Metadata-Flavor") == "Google"
                     return self.answer(200 if ok else 403, {"access_token": "gke-token"})
@@ -87,6 +100,9 @@ class Clouds:
                 self.route("GET")
 
             def do_POST(self):
+                if self.headers.get("Content-Type", "").startswith("application/json"):  # impersonation's body
+                    self.rfile.read(int(self.headers["Content-Length"]))
+                    self.headers.replace_header("Content-Length", "0")
                 self.route("POST")
 
             def do_PUT(self):
@@ -211,6 +227,51 @@ def test_a_google_service_account_key_signs_for_a_token_sent_as_a_header(clouds,
 def test_gke_workload_identity_from_the_metadata_server_when_asked_for(clouds):
     assert "Authorization" not in Files(url="gs://maps/in/").session.headers
     assert Files(url="gs://maps/in/", options={"identity": "google"}).session.headers["Authorization"] == "Bearer gke-token"
+
+
+def test_a_gcloud_login_from_its_default_file(clouds, monkeypatch, tmp_path):
+    """`gcloud auth application-default login` writes an authorized_user file where gcloud keeps its config."""
+    config = tmp_path / "gcloud"
+    config.mkdir()
+    (config / "application_default_credentials.json").write_text(json.dumps({
+        "type": "authorized_user", "client_id": "gcloud-client", "client_secret": "s", "refresh_token": "refresh1",
+        "token_uri": f"{clouds.url}/google/refresh"}))
+    monkeypatch.setenv("CLOUDSDK_CONFIG", str(config))
+    assert Files(url="gs://maps/in/").session.headers["Authorization"] == "Bearer user-token"
+
+
+def federation(clouds, tmp_path, source: dict, impersonate: bool) -> str:
+    info = {"type": "external_account", "audience": "//iam.googleapis.com/projects/1/locations/global/workloadIdentityPools/p/providers/gh",
+            "subject_token_type": "urn:ietf:params:oauth:token-type:jwt", "token_url": f"{clouds.url}/v1/token",
+            "credential_source": source}
+    if impersonate:
+        info["service_account_impersonation_url"] = (f"{clouds.url}/v1/projects/-/serviceAccounts/"
+                                                     "dataops@p.iam.gserviceaccount.com:generateAccessToken")
+    (tmp_path / "federation.json").write_text(json.dumps(info))
+    return str(tmp_path / "federation.json")
+
+
+def test_workload_identity_federation_from_a_file_and_impersonation(clouds, monkeypatch, tmp_path):
+    (tmp_path / "token").write_text("file-oidc-jwt\n")
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", federation(clouds, tmp_path, {"file": str(tmp_path / "token")}, True))
+    assert Files(url="gs://maps/in/").session.headers["Authorization"] == "Bearer impersonated-token"
+    exchange = [a for a in clouds.asked if a[1] == "/v1/token"][0][3]
+    assert exchange["scope"] == "https://www.googleapis.com/auth/cloud-platform"  # impersonation needs it
+
+
+def test_workload_identity_federation_from_an_address_as_github_actions_gives_it(clouds, monkeypatch, tmp_path):
+    source = {"url": f"{clouds.url}/oidc", "headers": {"Authorization": "Bearer actions-request-token"},
+              "format": {"type": "json", "subject_token_field_name": "value"}}
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", federation(clouds, tmp_path, source, False))
+    assert Files(url="gs://maps/in/").session.headers["Authorization"] == "Bearer federated-github-oidc-jwt"
+
+
+def test_federation_from_aws_says_it_isnt_read(monkeypatch, tmp_path):
+    (tmp_path / "f.json").write_text(json.dumps({"type": "external_account", "audience": "a", "subject_token_type": "t",
+                                                 "credential_source": {"environment_id": "aws1", "region_url": "x"}}))
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", str(tmp_path / "f.json"))
+    with pytest.raises(SourceError, match="gets its token from AWS or a program"):
+        Files(url="gs://maps/in/")
 
 
 # --- Azure

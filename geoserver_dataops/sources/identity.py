@@ -6,7 +6,10 @@ What is found without being asked for (cheap: environment variables and files th
     AWS     AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY (and AWS_SESSION_TOKEN); IRSA on EKS
             (AWS_WEB_IDENTITY_TOKEN_FILE + AWS_ROLE_ARN, exchanged at STS); ECS tasks and EKS Pod Identity
             (AWS_CONTAINER_CREDENTIALS_FULL_URI or _RELATIVE_URI)
-    Google  GOOGLE_APPLICATION_CREDENTIALS naming a service account's key file
+    Google  GOOGLE_APPLICATION_CREDENTIALS, or gcloud's application default credentials file: a service
+            account's key, a person's `gcloud auth application-default login`, or workload identity
+            federation (external_account: a token from GitHub Actions, AKS, EKS, any OIDC provider,
+            exchanged at Google's STS, with service account impersonation)
     Azure   AKS workload identity (AZURE_FEDERATED_TOKEN_FILE, AZURE_CLIENT_ID, AZURE_TENANT_ID)
 And only with the Source's `options.identity` (asked for, as finding out elsewhere means waiting on a timeout):
     aws     the EC2 instance's role (IMDSv2)
@@ -110,15 +113,86 @@ def aws_instance(session) -> AwsKeys:
 
 # --- Google
 
+def google_credentials_file() -> Path | None:
+    """Where Google's own libraries look: GOOGLE_APPLICATION_CREDENTIALS, else the file
+    `gcloud auth application-default login` writes."""
+    named = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if named:
+        return Path(named)
+    config = Path(os.environ.get("CLOUDSDK_CONFIG") or Path.home() / ".config" / "gcloud")
+    default = config / "application_default_credentials.json"
+    return default if default.is_file() else None
+
+
 def google_token(session, identity: str | None) -> str | None:
-    key_file = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if key_file:
-        return google_service_account(session, json.loads(Path(key_file).read_text()))
+    found = google_credentials_file()
+    if found:
+        try:
+            info = json.loads(found.read_text())
+        except (OSError, ValueError) as e:
+            raise SourceError(f"can't read Google credentials from {found}: {e}") from None
+        kind = info.get("type")
+        if kind == "service_account":
+            return google_service_account(session, info)
+        if kind == "authorized_user":
+            return google_authorized_user(session, info)
+        if kind == "external_account":
+            return google_external_account(session, info)
+        raise SourceError(f"{found} holds {kind!r} credentials; dataops reads service_account, authorized_user "
+                          "and external_account (workload identity federation) files")
     if identity == "google":
         r = _get(session, f"{GOOGLE_METADATA}/computeMetadata/v1/instance/service-accounts/default/token",
                  "a token from Google's metadata server (is this GKE or Compute Engine?)", headers={"Metadata-Flavor": "Google"})
         return r.json()["access_token"]
     return None
+
+
+def google_authorized_user(session, info: dict) -> str:
+    """A person's login from `gcloud auth application-default login`: its refresh token, exchanged."""
+    r = _get(session, info.get("token_uri") or GOOGLE_TOKEN, "a token for your gcloud login (gcloud auth application-default login)",
+             method="POST", data={"grant_type": "refresh_token", "refresh_token": info["refresh_token"],
+                                  "client_id": info["client_id"], "client_secret": info["client_secret"]})
+    return r.json()["access_token"]
+
+
+def google_external_account(session, info: dict) -> str:
+    """Workload identity federation: a token from another platform (GitHub Actions, AKS, EKS, any OIDC
+    provider), read from a file or an address, exchanged at Google's STS for a Google token; then, when the
+    file names a service account to impersonate, exchanged again for that account's token."""
+    source = info.get("credential_source") or {}
+    if source.get("environment_id", "").startswith("aws") or source.get("executable"):
+        raise SourceError("this external_account file gets its token from AWS or a program; dataops reads those "
+                          "whose credential_source is a file or a url")
+    if "file" in source:
+        try:
+            raw = Path(source["file"]).read_text()
+        except OSError as e:
+            raise SourceError(f"can't read the token Google federation exchanges, {source['file']}: {e.strerror or e}") from None
+    elif "url" in source:
+        raw = _get(session, source["url"], "the token Google federation exchanges", headers=source.get("headers") or {}).text
+    else:
+        raise SourceError("an external_account file needs credential_source.file or credential_source.url")
+    fmt = source.get("format") or {}
+    if fmt.get("type") == "json":
+        try:
+            subject = json.loads(raw)[fmt["subject_token_field_name"]]
+        except (ValueError, KeyError):
+            raise SourceError(f"the federated token isn't JSON with {fmt.get('subject_token_field_name')!r}") from None
+    else:
+        subject = raw.strip()
+    impersonate = info.get("service_account_impersonation_url")
+    r = _get(session, info.get("token_url") or "https://sts.googleapis.com/v1/token", "a Google token for the federated identity",
+             method="POST", data={
+                 "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange", "audience": info["audience"],
+                 "scope": "https://www.googleapis.com/auth/cloud-platform" if impersonate else GOOGLE_SCOPE,
+                 "requested_token_type": "urn:ietf:params:oauth:token-type:access_token",
+                 "subject_token_type": info["subject_token_type"], "subject_token": subject})
+    token = r.json()["access_token"]
+    if not impersonate:
+        return token
+    r = _get(session, impersonate, "the impersonated service account's token", method="POST",
+             headers={"Authorization": f"Bearer {token}"}, json={"scope": [GOOGLE_SCOPE], "lifetime": "3600s"})
+    return r.json()["accessToken"]
 
 
 def google_service_account(session, key: dict) -> str:
