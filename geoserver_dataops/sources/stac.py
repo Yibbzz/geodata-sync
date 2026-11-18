@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import PurePosixPath
 from urllib.parse import urlparse
 
@@ -28,6 +29,22 @@ RASTER_TYPES = ("image/tiff", "image/jp2", "application/x-hdf")
 PLANETARY_COMPUTER = "planetarycomputer.microsoft.com"
 SIGN = f"https://{PLANETARY_COMPUTER}/api/sas/v1/sign"
 AZURE_BLOBS = ".blob.core.windows.net"
+
+
+DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def rfc3339(when: str) -> str:
+    """A Dataset's stac.datetime as STAC APIs take it: full RFC 3339 times. A day (2024-06-01) is the whole day,
+    a range of days (2024-06-01/2024-06-30) runs from the first's start to the last's end; `..` is an open end.
+    Strict servers (Earth Search) refuse bare dates."""
+    parts = str(when).strip().split("/")
+    if len(parts) == 1:
+        return f"{parts[0]}T00:00:00Z/{parts[0]}T23:59:59Z" if DAY.match(parts[0]) else parts[0]
+    start, end = parts[0], parts[1]
+    start = f"{start}T00:00:00Z" if DAY.match(start) else start
+    end = f"{end}T23:59:59Z" if DAY.match(end) else end
+    return f"{start}/{end}"
 
 
 def https_href(asset: dict) -> str:
@@ -135,7 +152,7 @@ class STAC:
         """The collection's items in `bbox` (and `datetime`), oldest first, so the newest is drawn on top."""
         query = {"collections": collection, "bbox": ",".join(str(x) for x in bbox), "limit": PAGE}
         if datetime:
-            query["datetime"] = datetime
+            query["datetime"] = rfc3339(datetime)
         found, url, params, body = [], f"{self.url}/search", query, None
         while True:
             data = self._get(url, collection, params=params, body=body)
