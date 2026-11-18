@@ -94,3 +94,32 @@ def test_discover_shows_an_arcgis_layer(server, capsys, tmp_path):
     assert "Rivers (Hydro/Water/FeatureServer/0), version 2025-10-09" in out
     assert "Rivers  MultiLineString  EPSG:27700  25" in out
     discover.cache_path  # the version makes the layers cacheable, as a file's are
+
+
+def test_a_private_service_is_read_with_the_secrets_api_key(server):
+    from geoserver_dataops.sources.arcgis import ArcGIS
+    server.required_token = "good-token"
+    with pytest.raises(SourceError, match="needs a token; set apiKey, or username and password"):
+        ArcGIS(url=server.root).product("Hydro/Water/FeatureServer/0")
+    client = ArcGIS(url=server.root, credentials=lambda k: {"apiKey": "good-token"}.get(k))
+    p = client.product("Hydro/Water/FeatureServer/0")
+    assert "token=good-token" in client.gdal_source(p)[0]  # GDAL's load carries it too
+    with pytest.raises(SourceError, match="login wasn't accepted"):
+        ArcGIS(url=server.root, credentials=lambda k: {"apiKey": "old-key"}.get(k)).product("Hydro/Water/FeatureServer/0")
+
+
+def test_a_username_and_password_get_a_token_where_the_server_says(server):
+    from geoserver_dataops.sources.arcgis import ArcGIS
+    server.required_token = "from-login"
+    client = ArcGIS(url=server.root, credentials=lambda k: {"username": "user1", "password": "pw1"}.get(k))
+    assert client.product("Hydro/Water/FeatureServer/0").name == "Rivers"
+    assert "/arcgis/tokens/generateToken" in server.requests  # found through /rest/info
+    with pytest.raises(SourceError, match="refused the login .*check username and password"):
+        ArcGIS(url=server.root, credentials=lambda k: {"username": "user1", "password": "nope"}.get(k)).product("Hydro/Water/FeatureServer/0")
+
+
+def test_arcgis_onlines_token_address_is_its_own():
+    from geoserver_dataops.sources.arcgis import ONLINE_TOKENS, ArcGIS
+    assert ArcGIS(url="https://services3.arcgis.com/abc/arcgis/rest/services").token_url() == ONLINE_TOKENS
+    assert ArcGIS(url="https://gis.example.org/server/rest/services", options={"tokenUrl": "https://gis.example.org/portal/sharing/rest/generateToken"}
+                  ).token_url() == "https://gis.example.org/portal/sharing/rest/generateToken"
