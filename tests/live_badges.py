@@ -15,7 +15,7 @@ BADGES = {
     "ckan": "CKAN", "socrata": "Socrata", "opendatasoft": "OpenDataSoft", "arcgis": "ArcGIS Server and Online",
     "arcgis-hub": "ArcGIS Hub", "csw": "CSW (GeoNetwork)", "atom": "INSPIRE Atom", "os-downloads": "Ordnance Survey",
     "wfs": "WFS", "ogc-api-features": "OGC API Features", "stac-earth-search": "STAC (Earth Search)",
-    "stac-planetary-computer": "STAC (Planetary Computer)", "overture": "Overture Maps", "geofabrik": "OpenStreetMap (Geofabrik)",
+    "stac-planetary-computer": "STAC (Planetary Computer)", "overture": "Overture Maps", "usgs": "USGS National Map (elevation)", "usgs-vector": "USGS National Map (vector)", "geofabrik": "OpenStreetMap (Geofabrik)",
     "overpass": "OpenStreetMap (Overpass)", "url": "A link", "files-s3": "Amazon S3", "files-gcs": "Google Cloud Storage",
     "files-azure": "Azure Blob Storage", "files-folder": "A folder or share", "files-sftp": "SFTP", "files-ftp": "FTP",
 }

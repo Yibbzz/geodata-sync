@@ -189,7 +189,7 @@
         "type": {
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9-]*$",
-          "description": "A source type: os-downloads, url, ckan, ogc-api-features, wfs, arcgis, stac, ogc-api-records, csw, socrata, opendatasoft, overture, geofabrik, koordinates, atom, overpass, files, or one a plugin adds (docs/plugins.md)",
+          "description": "A source type: os-downloads, url, ckan, ogc-api-features, wfs, arcgis, stac, ogc-api-records, csw, socrata, opendatasoft, overture, geofabrik, koordinates, atom, overpass, files, usgs, or one a plugin adds (docs/plugins.md)",
           "examples": [
             "os-downloads",
             "url",
@@ -398,6 +398,30 @@
         "options": {
           "type": "object",
           "description": "Settings a plugin's source type reads for this dataset (docs/plugins.md)"
+        },
+        "usgs": {
+          "type": "object",
+          "required": [
+            "bbox"
+          ],
+          "additionalProperties": false,
+          "description": "the area of a National Map dataset, and its format",
+          "properties": {
+            "bbox": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 4,
+              "maxItems": 4,
+              "description": "the area, in degrees: [west, south, east, north]"
+            },
+            "format": {
+              "type": "string",
+              "minLength": 1,
+              "description": "the format, when the dataset comes in several: GeoTIFF, GeoPackage, Shapefile, FileGDB"
+            }
+          }
         }
       }
     }

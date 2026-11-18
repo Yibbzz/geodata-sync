@@ -91,16 +91,40 @@ def unpack(download: Path, work: Path) -> list[Path]:
     return rasters
 
 
+REMOTE = "/vsicurl/"  # a raster read where it is, over HTTP ranges
+TIFF_MAGIC = (b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+")  # TIFF and BigTIFF
+
+
+def gdal_env() -> dict:
+    from .remote import GDAL_ENV
+    return {**GDAL_ENV, **os.environ}
+
+
+def check_remote_tiff(address: str) -> None:
+    """A raster read in place must be a TIFF: GDAL picks a driver from content, and a "tile.tif" that is really a VRT
+    could have local files read into the result (as refuse_pointers says for downloads)."""
+    import requests
+    url = address.removeprefix(REMOTE)
+    try:
+        r = requests.get(url, headers={"Range": "bytes=0-3"}, timeout=60)
+    except requests.RequestException as e:
+        raise LoadError(f"can't reach {url.split('?')[0]}: {e}") from None
+    if r.status_code not in (200, 206):
+        raise LoadError(f"{url.split('?')[0]} answered HTTP {r.status_code}")
+    if r.content[:4] not in TIFF_MAGIC:
+        raise LoadError(f"{url.split('?')[0].rsplit('/', 1)[-1]} isn't a GeoTIFF: dataops reads only GeoTIFFs in place")
+
+
 def gdal(*cmd: str) -> None:
-    result = subprocess.run(list(cmd), capture_output=True, text=True)
+    result = subprocess.run(list(cmd), capture_output=True, text=True, env=gdal_env())
     if result.returncode != 0:
         raise LoadError(f"{cmd[0]} failed: {gdal_errors(result.stderr)}")
 
 
 def info(path: Path) -> dict:
-    result = subprocess.run(["gdalinfo", "-json", str(path)], capture_output=True, text=True)
+    result = subprocess.run(["gdalinfo", "-json", str(path)], capture_output=True, text=True, env=gdal_env())
     if result.returncode != 0:
-        raise LoadError(f"GDAL can't read {path.name}: {gdal_errors(result.stderr)}")
+        raise LoadError(f"GDAL can't read {Path(str(path)).name}: {gdal_errors(result.stderr)}")
     return json.loads(result.stdout)
 
 
@@ -176,7 +200,13 @@ def load(downloads: Path | list[Path], work: Path, path: str, crs: str | None, f
     live = live_path(path)
     live.parent.mkdir(parents=True, exist_ok=True)
     downloads = downloads if isinstance(downloads, list) else [downloads]
-    rasters = [r for i, d in enumerate(downloads) for r in unpack(d, work / f"unpacked-{i}" if len(downloads) > 1 else work)]
+    rasters = []
+    for i, d in enumerate(downloads):
+        if str(d).startswith(REMOTE):  # read where it is: only the area cropped to is fetched
+            check_remote_tiff(str(d))
+            rasters.append(str(d))
+        else:
+            rasters += unpack(d, work / f"unpacked-{i}" if len(downloads) > 1 else work)
     new = live.with_name(f".{live.name}.{datetime.now():%Y%m%d%H%M%S}.new")  # beside the live file: the rename stays on one volume
     try:
         built = build(rasters, work, new, crs, fallback, nodata, area)
