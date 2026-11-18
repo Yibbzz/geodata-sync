@@ -185,3 +185,19 @@ def test_an_area_crops_the_mosaic_to_it(tmp_path):
     assert built["size"] == [30, 20]
     corner = json.loads(subprocess.run(["gdalinfo", "-json", str(tmp_path / "out.tif")], capture_output=True, text=True).stdout)
     assert [round(v, 6) for v in corner["cornerCoordinates"]["upperLeft"]] == [0.2, 52.5]
+
+
+@pytest.mark.skipif(shutil.which("gdal_translate") is None, reason="GDAL's command-line tools not installed")
+def test_an_area_past_the_data_crops_to_where_they_overlap_and_one_outside_says_so(tmp_path):
+    import subprocess
+
+    from geoserver_dataops.ingest import LoadError
+    from geoserver_dataops.raster import build
+    asc = tmp_path / "tile.asc"
+    asc.write_text("ncols 100\nnrows 100\nxllcorner 0\nyllcorner 52\ncellsize 0.01\n" + ("1 " * 100 + "\n") * 100)
+    tif = tmp_path / "tile.tif"
+    subprocess.run(["gdal_translate", "-q", "-a_srs", "EPSG:4326", str(asc), str(tif)], check=True)
+    assert build([tif], tmp_path, tmp_path / "a.tif", None, None, area=[-5, 50, 5, 55])["size"] == [100, 100]  # no padding
+    assert build([tif], tmp_path, tmp_path / "b.tif", None, None, area=[0.5, 52.5, 3, 55])["size"] == [50, 50]
+    with pytest.raises(LoadError, match="don't reach stac.bbox"):
+        build([tif], tmp_path, tmp_path / "c.tif", None, None, area=[10, 10, 11, 11])

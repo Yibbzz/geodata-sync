@@ -104,6 +104,24 @@ def info(path: Path) -> dict:
     return json.loads(result.stdout)
 
 
+def crop_window(vrt: Path, area: list[float]) -> list[str]:
+    """gdal_translate's arguments that crop the mosaic to `area` ([west, south, east, north], degrees): where the
+    area and the mosaic overlap, so a bbox reaching past the data doesn't pad the result with empty pixels.
+    None when the area holds the whole mosaic."""
+    ring = ((info(vrt).get("wgs84Extent") or {}).get("coordinates") or [[]])[0]
+    if not ring:
+        return []  # the mosaic's extent in degrees can't be worked out: left whole
+    lons, lats = [p[0] for p in ring], [p[1] for p in ring]
+    have = (min(lons), min(lats), max(lons), max(lats))
+    west, south = max(area[0], have[0]), max(area[1], have[1])
+    east, north = min(area[2], have[2]), min(area[3], have[3])
+    if west >= east or south >= north:
+        raise LoadError(f"the rasters don't reach stac.bbox {area}: they cover {[round(v, 4) for v in have]}")
+    if (west, south, east, north) == have:
+        return []
+    return ["-projwin", str(west), str(north), str(east), str(south), "-projwin_srs", "EPSG:4326"]
+
+
 def build(rasters: list[Path], work: Path, out: Path, crs: str | None, fallback: str | None, nodata: float | None = None,
           area: list[float] | None = None) -> dict:
     """
@@ -120,10 +138,7 @@ def build(rasters: list[Path], work: Path, out: Path, crs: str | None, fallback:
     srs = ["-a_srs", assign] if assign else []
     empty = ["-vrtnodata", str(nodata), "-srcnodata", str(nodata)] if nodata is not None else []
     gdal("gdalbuildvrt", "-q", *srs, *empty, "-input_file_list", str(listing), str(vrt))
-    crop = []
-    if area:
-        west, south, east, north = area
-        crop = ["-projwin", str(west), str(north), str(east), str(south), "-projwin_srs", "EPSG:4326"]
+    crop = crop_window(vrt, area) if area else []
     gdal("gdal_translate", "-q", *crop, "-of", "COG", "-co", "COMPRESS=DEFLATE", "-co", "PREDICTOR=YES", "-co", "BIGTIFF=IF_SAFER",
          "-co", "NUM_THREADS=ALL_CPUS", "-co", "OVERVIEWS=AUTO", str(vrt), str(out))
     built = info(out)
