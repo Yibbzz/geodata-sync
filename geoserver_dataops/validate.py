@@ -15,13 +15,15 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import best_match
 
 from .loader import Problem, Project, Resource, default_table
+from .sources import built_in_types, plugin_types
 
 SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis", "stac", "ogc-api-records", "csw",
-                         "socrata", "opendatasoft", "overture", "geofabrik", "koordinates", "atom", "overpass"}
+                         "socrata", "opendatasoft", "overture", "geofabrik", "koordinates", "atom", "overpass", "files"}
 SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads", "overture", "geofabrik", "overpass"}
 SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture", "geofabrik", "overpass"}  # a mirror, another Overpass instance
 SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw", "geofabrik", "atom"}  # products with several downloads to pick from  # need the Source's spec.url
-SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft", "koordinates"}
+FILE_SCHEMES = ("file://", "s3://", "gs://", "az://")
+SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft", "koordinates", "files"}
 SOURCES_NEEDING_KEYS = {"koordinates"}  # send the credentials secret's apiKey; the others send nothing
 
 
@@ -123,8 +125,23 @@ def check_references(project: Project) -> list[Problem]:
     problems = []
     sources = project.named("Source")
 
+    built_in, plugins = built_in_types(), plugin_types()
     for s in project.of_kind("Source"):
         kind = s.spec.get("type")
+        if kind and kind not in built_in:
+            if kind not in plugins:
+                close = difflib.get_close_matches(kind, [*built_in, *plugins], n=1)
+                hint = f" (did you mean {close[0]!r}?)" if close else (
+                    f"; plugins installed: {', '.join(sorted(plugins))}" if plugins else "; no plugin source types are installed")
+                problems.append(Problem(s.file, s.line(("spec", "type")), f"spec.type: no source type {kind!r}{hint}", s.label))
+            continue  # a plugin's type: what it needs is its own business
+        if kind == "files" and s.spec.get("url") and not str(s.spec["url"]).startswith(FILE_SCHEMES):
+            problems.append(Problem(s.file, s.line(("spec", "url")), "spec.url: a files source is a folder or bucket: "
+                                    "file:///mnt/drop/, s3://bucket/prefix/, gs://bucket/prefix/ or az://account/container/prefix/", s.label))
+        if kind != "files" and str(s.spec.get("url") or "https://").split("://")[0] not in ("http", "https"):
+            problems.append(Problem(s.file, s.line(("spec", "url")), f"spec.url: a {kind} source's address is http(s)://", s.label))
+        if kind != "files" and s.spec.get("options"):
+            problems.append(Problem(s.file, s.line(("spec", "options")), f"spec.options: not used by a {kind} source", s.label, "warning"))
         if kind in SOURCES_WITH_ADDRESSES and not s.spec.get("url"):
             problems.append(Problem(s.file, s.line(("spec",)), f"spec.url: a {kind} source needs its address, e.g. https://data.gov.uk", s.label))
         if kind not in SOURCES_WITH_ADDRESSES | SOURCES_WITH_OPTIONAL_ADDRESSES and s.spec.get("url"):
@@ -135,7 +152,7 @@ def check_references(project: Project) -> list[Problem]:
         if kind not in SOURCES_WITH_KEYS and s.spec.get("credentials"):
             problems.append(Problem(s.file, s.line(("spec", "credentials")),
                                     f"spec.credentials: a {kind} source sends no credentials, so a service that needs them "
-                                    f"will refuse it; only {', '.join(sorted(SOURCES_WITH_KEYS))} sources use an API key", s.label, "warning"))
+                                    f"will refuse it; only {', '.join(sorted(SOURCES_WITH_KEYS))} sources send credentials", s.label, "warning"))
 
     for d in project.of_kind("Dataset"):
         source = sources.get(d.spec.get("source"))
@@ -144,6 +161,10 @@ def check_references(project: Project) -> list[Problem]:
         if not source:
             continue
         kind = source.spec.get("type")
+        if kind not in built_in:
+            continue  # a plugin's dataset: its product and options are the plugin's to check
+        if d.spec.get("options"):
+            problems.append(Problem(d.file, d.line(("spec", "options")), f"spec.options: only read by plugins' source types, not {kind}", d.label, "warning"))
         if kind in SOURCES_WITH_PRODUCTS and not d.spec.get("product"):
             problems.append(Problem(d.file, d.line(("spec",)), f"spec.product: required for a {kind} source", d.label))
         if kind == "url" and not d.spec.get("url"):

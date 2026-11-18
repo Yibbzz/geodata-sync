@@ -187,7 +187,10 @@
       "additionalProperties": false,
       "properties": {
         "type": {
-          "enum": [
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "A source type: os-downloads, url, ckan, ogc-api-features, wfs, arcgis, stac, ogc-api-records, csw, socrata, opendatasoft, overture, geofabrik, koordinates, atom, overpass, files, or one a plugin adds (docs/plugins.md)",
+          "examples": [
             "os-downloads",
             "url",
             "ckan",
@@ -203,7 +206,8 @@
             "geofabrik",
             "koordinates",
             "atom",
-            "overpass"
+            "overpass",
+            "files"
           ]
         },
         "credentials": {
@@ -211,8 +215,25 @@
         },
         "url": {
           "type": "string",
-          "pattern": "^https?://",
-          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, a catalogue (OGC API Records, CSW), a Socrata, OpenDataSoft or Koordinates portal, an INSPIRE Atom service feed, an Overpass API instance"
+          "pattern": "^(https?|file|s3|gs|az)://",
+          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, a catalogue (OGC API Records, CSW), a Socrata, OpenDataSoft or Koordinates portal, an INSPIRE Atom service feed, an Overpass API instance; for files, a folder or bucket: file:///mnt/drop/, s3://bucket/prefix/, gs://bucket/prefix/, az://account/container/prefix/"
+        },
+        "options": {
+          "type": "object",
+          "description": "Settings of the source type: for files, endpoint (an S3-compatible store's address), region and pathStyle; a plugin's own",
+          "properties": {
+            "endpoint": {
+              "type": "string",
+              "pattern": "^https?://"
+            },
+            "region": {
+              "type": "string",
+              "minLength": 1
+            },
+            "pathStyle": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },
@@ -360,6 +381,10 @@
               "description": "the value for where no raster covers, and the rasters' own gaps"
             }
           }
+        },
+        "options": {
+          "type": "object",
+          "description": "Settings a plugin's source type reads for this dataset (docs/plugins.md)"
         }
       }
     }

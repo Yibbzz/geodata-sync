@@ -10,6 +10,7 @@ ingest log, which is also what says when a dataset is next due.
 from __future__ import annotations
 
 import hashlib
+import re
 import sys
 import tempfile
 import time
@@ -56,6 +57,17 @@ def wanted_tables(dataset: Resource) -> dict[str, dict] | None:
     """`tables`: layer -> options, or None for every layer."""
     tables = dataset.spec.get("tables")
     return {layer: options or {} for layer, options in tables.items()} if tables else None
+
+
+def is_pattern(product) -> bool:
+    return isinstance(product, str) and any(c in product for c in "*?[")
+
+
+def pattern_stem(pattern: str) -> str:
+    """A pattern's name without its wildcards and extension: roads_*.zip -> roads."""
+    name = re.sub(r"\.[A-Za-z0-9]+$", "", pattern.rsplit("/", 1)[-1])  # the file name, no extension
+    name = re.sub(r"\[[^\]]*\]|[*?]", "", name)  # no wildcards
+    return re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_") or "data"
 
 
 def plan_layers(dataset: Resource, found: list[tuple[str, str, str | None]], project_crs: str,
@@ -113,7 +125,7 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
     src = discover.resolve(spec["source"], root)
     raster_spec = spec.get("raster")
     if hasattr(src.client, "selection"):  # a STAC collection's or an Overture type's part: options under the type's name
-        product: Product = src.client.selection(spec["product"], spec.get(src.type) or {})
+        product: Product = src.client.selection(spec["product"], spec.get(src.type) or spec.get("options") or {})
     elif raster_spec and src.type == "os-downloads":
         product: Product = src.client.product(spec["product"], spec.get("resource"), raster=True)
     else:
@@ -154,6 +166,11 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
                 return f"{dataset.name}: up to date (same file as last time)", []
             conn.rollback()  # and the one that check began, while the file is unzipped and read
             found = ingest.file_layers(path, work)
+            if len(found) == 1 and is_pattern(spec.get("product")):
+                # The newest of several files (roads_20261115.zip): its one layer is named after the pattern,
+                # not the file, so each new delivery loads into the same table
+                source_path, gdal_layer, crs = found[0]
+                found, gdal_names = [(source_path, pattern_stem(spec["product"]), crs)], {pattern_stem(spec["product"]): gdal_layer}
         layers = plan_layers(dataset, found, project_crs, gdal_names)
         t0 = time.monotonic()
         staged = ingest.load_all(
@@ -195,7 +212,10 @@ def sync_raster(conn, dataset: Resource, src, product: Product, last, started: d
             sha = hashlib.sha256("".join(hashes).encode()).hexdigest()
         else:
             downloads = [work / (Path(chosen.file_name).name if chosen.file_name else "download")]
-            sha = ingest.download(src.client.download_url(chosen), downloads[0], chosen.md5)
+            if hasattr(src.client, "fetch"):  # a source that copies its files itself (a folder, a bucket)
+                sha = src.client.fetch(chosen, downloads[0])
+            else:
+                sha = ingest.download(src.client.download_url(chosen), downloads[0], chosen.md5)
         if in_place and last.sha256 == sha:
             # the same file under a new version: recorded, so the next check compares with this version
             version = product.version or last.version
