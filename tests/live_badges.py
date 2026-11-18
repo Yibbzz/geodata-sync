@@ -13,15 +13,18 @@ from pathlib import Path
 # badge id -> (label, the tests that decide it: test_live_sources' case, or a test's name)
 BADGES = {
     "ckan": "CKAN", "socrata": "Socrata", "opendatasoft": "OpenDataSoft", "arcgis": "ArcGIS Server and Online",
-    "arcgis-hub": "ArcGIS Hub", "csw": "CSW (GeoNetwork)", "atom": "INSPIRE Atom", "os-downloads": "Ordnance Survey",
+    "arcgis-hub": "ArcGIS Hub", "csw": "CSW (GeoNetwork)", "atom": "INSPIRE Atom", "data-europa": "data.europa.eu", "os-downloads": "Ordnance Survey",
     "wfs": "WFS", "ogc-api-features": "OGC API Features", "stac-earth-search": "STAC (Earth Search)",
     "stac-planetary-computer": "STAC (Planetary Computer)", "overture": "Overture Maps", "usgs": "USGS National Map (elevation)", "usgs-vector": "USGS National Map (vector)", "geofabrik": "OpenStreetMap (Geofabrik)",
     "overpass": "OpenStreetMap (Overpass)", "url": "A link", "files-s3": "Amazon S3", "files-gcs": "Google Cloud Storage",
     "files-azure": "Azure Blob Storage", "files-folder": "A folder or share", "files-sftp": "SFTP", "files-ftp": "FTP",
+    "database-postgresql": "PostgreSQL / PostGIS", "database-mysql": "MySQL / MariaDB",
 }
 # tests elsewhere that stand for a badge
 OTHER_TESTS = {"test_a_plain_path_is_a_folder": "files-folder", "test_sftp_lists_and_fetches_with_a_pinned_key": "files-sftp",
-               "test_ftp_lists_relative_to_the_login_and_fetches": "files-ftp"}
+               "test_ftp_lists_relative_to_the_login_and_fetches": "files-ftp",
+               "test_a_postgresql_table_is_copied_and_again_only_when_it_changes": "database-postgresql",
+               "test_a_mariadb_table_is_copied": "database-mysql"}
 
 
 def results(paths: list[str]) -> dict[str, str]:

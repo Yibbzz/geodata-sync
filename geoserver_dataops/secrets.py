@@ -31,7 +31,8 @@ SECRETS_DIR = "DATAOPS_SECRETS_DIR"
 
 
 # A query parameter that carries a credential: key, api_key, access_token, sig, X-Amz-Signature, X-Amz-Credential...
-SENSITIVE_PARAM = re.compile(r"([?&][\w.-]*(?:key|token|sig|signature|secret|password|credential)[\w.-]*=)[^&\s\"')]+", re.IGNORECASE)
+# a URL's query parameter (?apiKey=...), or a connection string's (PG:... password=..., MYSQL:...,password=...)
+SENSITIVE_PARAM = re.compile(r"([?&,;\s][\w.-]*(?:key|token|sig|signature|secret|password|passwd|pwd|credential)[\w.-]*=)(?:'(?:[^'\\]|\\.)*'|[^&\s\"',;)]+)", re.IGNORECASE)
 
 
 def redact(text: str) -> str:

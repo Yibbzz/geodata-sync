@@ -40,7 +40,7 @@ NO_COUNT_EXTENSIONS = (".gml", ".csv", ".geojson", ".json", ".kml")
 # would be loaded into a table. Naming the drivers stops GDAL trying those.
 FILE_DRIVERS = ("GPKG", "ESRI Shapefile", "GML", "MapInfo File", "GeoJSON", "GeoJSONSeq", "ESRIJSON", "TopoJSON",
                 "CSV", "KML", "LIBKML", "FlatGeobuf", "OpenFileGDB", "OSM")
-SERVICE_DRIVERS = {"WFS:": "WFS", "OAPIF:": "OAPIF", "ESRIJSON:": "ESRIJSON"}
+SERVICE_DRIVERS = {"WFS:": "WFS", "OAPIF:": "OAPIF", "ESRIJSON:": "ESRIJSON", "PG:": "PostgreSQL", "MYSQL:": "MySQL"}
 
 TIMEOUT = 60
 
