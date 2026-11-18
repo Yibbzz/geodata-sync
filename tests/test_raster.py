@@ -168,3 +168,20 @@ def test_zips_nested_too_deep_or_unpacking_too_large(tmp_path, monkeypatch):
     monkeypatch.setenv("DATAOPS_MAX_UNPACKED_BYTES", "100000")
     with pytest.raises(LoadError, match="more than the limit of 100,000"):
         raster.unpack(bomb, tmp_path / "bomb")
+
+
+@pytest.mark.skipif(shutil.which("gdal_translate") is None, reason="GDAL's command-line tools not installed")
+def test_an_area_crops_the_mosaic_to_it(tmp_path):
+    """A STAC selection's tiles are cropped to the Dataset's bbox, given in degrees whatever the rasters' CRS."""
+    import json
+    import subprocess
+
+    from geoserver_dataops.raster import build
+    asc = tmp_path / "tile.asc"  # one degree square, 100 x 100
+    asc.write_text("ncols 100\nnrows 100\nxllcorner 0\nyllcorner 52\ncellsize 0.01\n" + ("1 " * 100 + "\n") * 100)
+    tif = tmp_path / "tile.tif"
+    subprocess.run(["gdal_translate", "-q", "-a_srs", "EPSG:4326", str(asc), str(tif)], check=True)
+    built = build([tif], tmp_path, tmp_path / "out.tif", None, None, area=[0.2, 52.3, 0.5, 52.5])
+    assert built["size"] == [30, 20]
+    corner = json.loads(subprocess.run(["gdalinfo", "-json", str(tmp_path / "out.tif")], capture_output=True, text=True).stdout)
+    assert [round(v, 6) for v in corner["cornerCoordinates"]["upperLeft"]] == [0.2, 52.5]

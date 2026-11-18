@@ -211,7 +211,8 @@ def sync_raster(conn, dataset: Resource, src, product: Product, last, started: d
             ingest.record(conn, dataset.name, version, chosen.format, "skipped", started, sha=sha, tables=[path])
             return f"{dataset.name}: up to date (same file{'s' if product.parts else ''} as last time)", []
         t0 = time.monotonic()
-        pixels = raster.load(downloads, work, path, options.get("crs"), project_crs, project.spec.get("backups", 3), options.get("nodata"))
+        pixels = raster.load(downloads, work, path, options.get("crs"), project_crs, project.spec.get("backups", 3), options.get("nodata"),
+                             area=(dataset.spec.get("stac") or {}).get("bbox"))  # a STAC selection is cropped to its area
     version = product.version or f"sha256:{sha[:16]}"
     ingest.record(conn, dataset.name, version, chosen.format, "success", started, rows=pixels, sha=sha, tables=[path])
     return (f"{dataset.name}: loaded {discover.version(version)} in {time.monotonic() - t0:.0f}s: "

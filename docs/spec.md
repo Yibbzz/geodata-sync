@@ -140,9 +140,9 @@ spec:
 | `overture.bbox` | for `overture` | | The area, in degrees: `[west, south, east, north]`. Rows whose bounding box touches it are loaded (a road crossing its edge, whole). Structures (`names`, `sources`) become `json` columns, lists arrays. Only the files' footers and the row groups in the area are read, but a type in many files (buildings) takes a minute or so to look through |
 | `overpass.bbox` | for `overpass` | | The area, in degrees: `[west, south, east, north]` |
 | `options` | no | | Settings a plugin's source type reads for this Dataset (docs/plugins.md) |
-| `stac.bbox` | for `stac` | | The area, in degrees: `[west, south, east, north]` |
+| `stac.bbox` | for `stac` | | The area, in degrees: `[west, south, east, north]`. The items covering it are mosaicked and the result is cropped to it, whatever the rasters' CRS |
 | `stac.asset` | for `stac` | | Which file of each item, by its key (`data`, `visual`, `B04`): `dataops discover <source> <collection>` lists them |
-| `stac.datetime` | no | every time | A time or range, as STAC writes it (`2024-06-01/2024-06-30`). For a collection of repeated scenes (Sentinel-2), give one: every scene in it is mosaicked, the newest on top |
+| `stac.datetime` | no | every time | A day (`2024-06-01`, the whole day), a range of days (`2024-06-01/2024-06-30`), full times (`2024-06-01T10:00:00Z`), or an open end (`2024-06-01/..`). For a collection of repeated scenes (Sentinel-2), give one: every scene in it is mosaicked, the newest on top |
 | `validation.dropInvalidGeometries` | no | `true` | Leave out rows whose geometry PostGIS calls invalid |
 | `validation.minRows` | no | `1` | Fail the update (keep the old table) below this count |
 

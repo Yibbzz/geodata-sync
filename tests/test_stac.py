@@ -167,3 +167,12 @@ def test_the_planetary_computers_files_are_signed_and_no_others():
     assert other.download_url(blob) == blob.url and not other.session.asked
     with pytest.raises(SourceError, match="wouldn't sign"):
         STAC(url="https://planetarycomputer.microsoft.com/api/stac/v1", session=FakeSigner(503)).download_url(blob)
+
+
+def test_dates_are_sent_as_full_rfc3339_times():
+    """Earth Search refuses bare dates (HTTP 400): a day is its whole day, a range from start to end."""
+    from geoserver_dataops.sources.stac import rfc3339
+    assert rfc3339("2025-08-31") == "2025-08-31T00:00:00Z/2025-08-31T23:59:59Z"
+    assert rfc3339("2024-06-01/2024-06-30") == "2024-06-01T00:00:00Z/2024-06-30T23:59:59Z"
+    assert rfc3339("2024-06-01/..") == "2024-06-01T00:00:00Z/.."
+    assert rfc3339("2025-08-31T10:00:00Z") == "2025-08-31T10:00:00Z"
