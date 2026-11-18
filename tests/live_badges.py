@@ -16,7 +16,7 @@ BADGES = {
     "arcgis-hub": "ArcGIS Hub", "csw": "CSW (GeoNetwork)", "atom": "INSPIRE Atom", "data-europa": "data.europa.eu", "geonode": "GeoNode (its demo)", "os-downloads": "Ordnance Survey",
     "wfs": "WFS", "ogc-api-features": "OGC API Features", "stac-earth-search": "STAC (Earth Search)",
     "stac-planetary-computer": "STAC (Planetary Computer)", "overture": "Overture Maps", "usgs": "USGS National Map (elevation)", "usgs-vector": "USGS National Map (vector)", "geofabrik": "OpenStreetMap (Geofabrik)",
-    "overpass": "OpenStreetMap (Overpass)", "url": "A link", "files-s3": "Amazon S3", "files-gcs": "Google Cloud Storage",
+    "overpass": "OpenStreetMap (Overpass)", "url": "A link", "spreadsheet": "Spreadsheets (CSV, Excel, ODS)", "files-s3": "Amazon S3", "files-gcs": "Google Cloud Storage",
     "files-azure": "Azure Blob Storage", "files-folder": "A folder or share", "files-sftp": "SFTP", "files-ftp": "FTP",
     "database-postgresql": "PostgreSQL / PostGIS", "database-mysql": "MySQL / MariaDB",
 }

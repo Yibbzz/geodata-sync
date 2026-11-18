@@ -25,7 +25,7 @@ import psycopg2
 import psycopg2.errors
 import requests
 
-from . import remote
+from . import remote, spreadsheet
 
 LOG_TABLE = "public.os_ingest_log"  # the name the first ingest pipeline gave it; kept so history carries on
 TIMEOUT = 120
@@ -91,6 +91,7 @@ class Layer:
     table: str
     crs: str | None = None  # assigned when given (the file declares none, or the Dataset overrides it)
     gdal_layer: str | None = None  # GDAL's name for the layer, when `layer` is another (ArcGIS's are all ESRIJSON)
+    open_options: list[str] = field(default_factory=list)  # GDAL's -oo: a CSV's coordinate columns
 
 
 @dataclass
@@ -276,7 +277,7 @@ def file_layers(path: Path, work: Path) -> list[tuple[str, str, str | None]]:
         said = remote.service_error(f.read(4096))
     if said:
         raise LoadError(f"the server answered with an error, not data: {said}")
-    if zipfile.is_zipfile(path):
+    if zipfile.is_zipfile(path) and not spreadsheet.is_sheet(str(path)):  # .xlsx and .ods are zips too: workbooks, not archives
         out = work / "extracted"
         with zipfile.ZipFile(path) as z:
             check_unpacked_size(sum(i.file_size for i in z.infolist()))
@@ -286,6 +287,17 @@ def file_layers(path: Path, work: Path) -> list[tuple[str, str, str | None]]:
             raise LoadError("the download holds no data files GDAL can read")
     else:
         files = [str(path)]
+    # a workbook's sheets, each made a CSV: then read as any CSV (spreadsheet.py)
+    expanded = []
+    for i, f in enumerate(files):
+        if spreadsheet.is_sheet(f):
+            try:
+                expanded += [str(p) for p in spreadsheet.sheets_to_csv(Path(f), work / f"sheets-{i}")]
+            except ValueError as e:
+                raise LoadError(str(e)) from None
+        else:
+            expanded.append(f)
+    files = expanded
     found = []
     for f in files:
         for layer in remote.to_layers(remote.ogrinfo(f), f):
@@ -328,6 +340,7 @@ def load(db: Database, layer: Layer, staging: str) -> str:
     ]
     if layer.crs:
         cmd += ["-a_srs", layer.crs]
+    cmd += [arg for option in layer.open_options for arg in ("-oo", option)]
     env = {**remote.GDAL_ENV, **os.environ, "PGPASSWORD": db.password}
     result = subprocess.run(cmd + ["-overwrite"], capture_output=True, text=True, env=env)
     if result.returncode != 0 and BAD_DATE.search(result.stderr):

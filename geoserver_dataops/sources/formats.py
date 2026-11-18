@@ -20,6 +20,11 @@ FILE_FORMATS = [
     ("FlatGeobuf", {"fgb", "flatgeobuf"}, (".fgb",)),
     # A zip could hold anything; reading it tells
     ("ZIP", {"zip", "application/zip", "application/x-zip-compressed"}, (".zip",)),
+    # Spreadsheets: points by their coordinate columns (geoserver_dataops/spreadsheet.py); last, as a GIS format is better
+    ("CSV", {"csv", "text/csv", "tsv", "text/tab-separated-values"}, (".csv", ".tsv")),
+    ("Excel", {"xlsx", "xls", "excel", "ms excel", "application/vnd.ms-excel",
+               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}, (".xlsx", ".xls")),
+    ("ODS", {"ods", "application/vnd.oasis.opendocument.spreadsheet"}, (".ods",)),
 ]
 FILE_LABELS = [label for label, _, _ in FILE_FORMATS]
 

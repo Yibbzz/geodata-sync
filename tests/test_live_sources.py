@@ -29,6 +29,7 @@ CASES = {
     "ckan": ("{ type: ckan, url: https://data.gov.uk }",
              "{ product: conservation-areas125, resource: 9dd40b81-62f5-4c75-b1cd-d200af101632 }", None),
     "os-downloads": ("{ type: os-downloads }", None, ["OpenRoads", "--no-layers"]),
+    "spreadsheet": ("{ type: ckan, url: https://data.gov.uk }", "{ product: car-parks16 }", None),  # a CSV with LAT and LONG
     "url": ("{ type: url }", "{ url: https://service.pdok.nl/rvo/natura2000/atom/downloads/natura2000.gpkg }", None),
     "wfs": ("{ type: wfs, url: https://service.pdok.nl/rvo/natura2000/wfs/v1_0 }", "{ product: 'natura2000:natura2000' }", None),
     "ogc-api-features": ("{ type: ogc-api-features, url: https://demo.pygeoapi.io/stable }", "{ product: lakes }", None),
