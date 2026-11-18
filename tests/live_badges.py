@@ -18,10 +18,13 @@ BADGES = {
     "stac-planetary-computer": "STAC (Planetary Computer)", "overture": "Overture Maps", "geofabrik": "OpenStreetMap (Geofabrik)",
     "overpass": "OpenStreetMap (Overpass)", "url": "A link", "files-s3": "Amazon S3", "files-gcs": "Google Cloud Storage",
     "files-azure": "Azure Blob Storage", "files-folder": "A folder or share", "files-sftp": "SFTP", "files-ftp": "FTP",
+    "database-postgresql": "PostgreSQL / PostGIS", "database-mysql": "MySQL / MariaDB",
 }
 # tests elsewhere that stand for a badge
 OTHER_TESTS = {"test_a_plain_path_is_a_folder": "files-folder", "test_sftp_lists_and_fetches_with_a_pinned_key": "files-sftp",
-               "test_ftp_lists_relative_to_the_login_and_fetches": "files-ftp"}
+               "test_ftp_lists_relative_to_the_login_and_fetches": "files-ftp",
+               "test_a_postgresql_table_is_copied_and_again_only_when_it_changes": "database-postgresql",
+               "test_a_mariadb_table_is_copied": "database-mysql"}
 
 
 def results(paths: list[str]) -> dict[str, str]:

@@ -189,7 +189,7 @@
         "type": {
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9-]*$",
-          "description": "A source type: os-downloads, url, ckan, ogc-api-features, wfs, arcgis, stac, ogc-api-records, csw, socrata, opendatasoft, overture, geofabrik, koordinates, atom, overpass, files, data-europa, or one a plugin adds (docs/plugins.md)",
+          "description": "A source type: os-downloads, url, ckan, ogc-api-features, wfs, arcgis, stac, ogc-api-records, csw, socrata, opendatasoft, overture, geofabrik, koordinates, atom, overpass, files, database, data-europa, or one a plugin adds (docs/plugins.md)",
           "examples": [
             "os-downloads",
             "url",
@@ -215,8 +215,8 @@
         },
         "url": {
           "type": "string",
-          "pattern": "^((https?|file|s3|gs|az|sftp|ftps?)://|/|[A-Za-z]:[\\\\/])",
-          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, a catalogue (OGC API Records, CSW), a Socrata, OpenDataSoft or Koordinates portal, an INSPIRE Atom service feed, an Overpass API instance; for files, a folder, bucket or server: /mnt/drop/ (or file:///mnt/drop/), sftp://user@host/path/, ftp://host/path/, s3://bucket/prefix/, gs://bucket/prefix/, az://account/container/prefix/"
+          "pattern": "^((https?|file|s3|gs|az|sftp|ftps?|postgresql|postgres|postgis|mysql|mariadb)://|/|[A-Za-z]:[\\\\/])",
+          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, a catalogue (OGC API Records, CSW), a Socrata, OpenDataSoft or Koordinates portal, an INSPIRE Atom service feed, an Overpass API instance; for files, a folder, bucket or server: /mnt/drop/ (or file:///mnt/drop/), sftp://user@host/path/, ftp://host/path/, s3://bucket/prefix/, gs://bucket/prefix/, az://account/container/prefix/; for database, postgresql://host:5432/dbname or mysql://host:3306/dbname"
         },
         "options": {
           "type": "object",
