@@ -1,0 +1,91 @@
+name: Sources
+
+# Each source type against its real service (tests/test_live_sources.py), daily: a provider that changes
+# its API shows at once. The results are the README's source badges: tests/live_badges.py writes one
+# shields.io endpoint file per source to the `badges` branch. The run fails when any source does.
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # the badges branch
+
+concurrency:
+  group: sources
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:18-3.7
+        env:
+          POSTGRES_DB: gis
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      sftp:
+        image: atmoz/sftp@sha256:c5fb9e4beb8b7054a4c0b65c5e11df47cc20da95ad6002e88aecff62bab06372  # alpine
+        env:
+          SFTP_USERS: drop:dropPass123:1001::upload
+        ports:
+          - 52222:22
+      ftp:
+        image: delfer/alpine-ftp-server@sha256:b27013e7436cea343826ba7edb77aa3a8b2d22df14e366b82d10a3b0b5ecc880
+        env:
+          USERS: drop|dropPass123
+          ADDRESS: 127.0.0.1
+          MIN_PORT: '21000'
+          MAX_PORT: '21010'
+        ports:
+          - 52121:21
+          - 21000-21010:21000-21010
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - name: Install GDAL
+        run: tests/ci/install-gdal.sh
+      - name: Install Python dependencies
+        run: pip install -e '.[dev]'
+      - name: Each source against its real service
+        id: live
+        continue-on-error: true
+        env:
+          LIVE_SOURCES: '1'
+          TEST_DB_HOST: localhost
+          TEST_DB_PORT: '5432'
+          TEST_DB_NAME: gis
+          TEST_DB_USER: postgres
+          TEST_DB_PASSWORD: postgres
+          TEST_SFTP_PORT: '52222'
+          TEST_FTP_PORT: '52121'
+        run: pytest -v tests/test_live_sources.py tests/test_servers.py --junitxml=live.xml
+      - name: The badges, to the badges branch
+        if: always()
+        run: |
+          python tests/live_badges.py "$RUNNER_TEMP/sources" live.xml
+          git fetch origin badges || true
+          if git show-ref --quiet refs/remotes/origin/badges; then
+            git worktree add "$RUNNER_TEMP/badges" origin/badges
+            cd "$RUNNER_TEMP/badges" && git checkout -B badges
+          else
+            git worktree add --detach "$RUNNER_TEMP/badges"
+            cd "$RUNNER_TEMP/badges" && git checkout --orphan badges && git rm -rfq .
+          fi
+          rm -rf sources && cp -r "$RUNNER_TEMP/sources" sources
+          git add sources
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "Sources checked $(date -u +%Y-%m-%d)" || echo "no change"
+          git push origin badges
+      - name: Fail when a source failed
+        if: steps.live.outcome == 'failure'
+        run: exit 1
