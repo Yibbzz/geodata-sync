@@ -215,12 +215,12 @@
         },
         "url": {
           "type": "string",
-          "pattern": "^(https?|file|s3|gs|az)://",
-          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, a catalogue (OGC API Records, CSW), a Socrata, OpenDataSoft or Koordinates portal, an INSPIRE Atom service feed, an Overpass API instance; for files, a folder or bucket: file:///mnt/drop/, s3://bucket/prefix/, gs://bucket/prefix/, az://account/container/prefix/"
+          "pattern": "^((https?|file|s3|gs|az|sftp|ftps?)://|/|[A-Za-z]:[\\\\/])",
+          "description": "The source's address: a CKAN portal (e.g. https://data.gov.uk), a WFS or OGC API endpoint, an ArcGIS REST services directory, a STAC API, a catalogue (OGC API Records, CSW), a Socrata, OpenDataSoft or Koordinates portal, an INSPIRE Atom service feed, an Overpass API instance; for files, a folder, bucket or server: /mnt/drop/ (or file:///mnt/drop/), sftp://user@host/path/, ftp://host/path/, s3://bucket/prefix/, gs://bucket/prefix/, az://account/container/prefix/"
         },
         "options": {
           "type": "object",
-          "description": "Settings of the source type: for files, endpoint (an S3-compatible store's address), region and pathStyle; a plugin's own",
+          "description": "Settings of the source type: for files, endpoint (an S3-compatible store's address), region and pathStyle, or an SFTP server's hostKey; a plugin's own",
           "properties": {
             "endpoint": {
               "type": "string",
@@ -232,6 +232,11 @@
             },
             "pathStyle": {
               "type": "boolean"
+            },
+            "hostKey": {
+              "type": "string",
+              "pattern": "^SHA256:",
+              "description": "an SFTP server's key, as ssh-keygen -lf shows it"
             }
           }
         }

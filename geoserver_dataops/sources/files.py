@@ -2,7 +2,10 @@
 
 The Source's address says where:
 
-    file:///mnt/drop/roads/                 a folder: a mounted volume, an NFS or SMB share, a laptop's disk
+    /mnt/drop/roads/                        a folder: a mounted volume, an NFS or SMB share, a laptop's disk
+                                            (also file:///mnt/drop/roads/, D:\\drop\\)
+    sftp://user@host/path/                  an SFTP server (the path is absolute); its key pinned
+    ftp://host/path/, ftps://host/path/     an FTP server, or FTP over TLS (the path is relative to the login's)
     s3://bucket/prefix/                     Amazon S3, or any S3-compatible store (MinIO, Cloudflare R2,
                                             Wasabi, Ceph) with `options.endpoint`
     gs://bucket/prefix/                     Google Cloud Storage
@@ -21,10 +24,12 @@ cloud library: a download is a signed address, good for an hour, fetched like an
 
 from __future__ import annotations
 
+import base64
 import fnmatch
 import hashlib
 import hmac
 import os
+import re
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -41,7 +46,13 @@ from .formats import by_extension
 TIMEOUT = 60
 EXPIRES = 3600  # seconds a signed address is good for
 RASTERS = (".tif", ".tiff", ".asc", ".img", ".jp2", ".dem", ".bil", ".flt")
-SCHEMES = ("file", "s3", "gs", "az")
+SCHEMES = ("file", "s3", "gs", "az", "sftp", "ftp", "ftps")
+WINDOWS_DRIVE = re.compile(r"^[A-Za-z]:[\\/]")
+
+
+def is_local_path(url: str) -> bool:
+    """A plain path rather than an address: /srv/drop/, D:\\drop\\."""
+    return url.startswith("/") or bool(WINDOWS_DRIVE.match(url))
 
 
 @dataclass
@@ -240,6 +251,185 @@ class Container:
         return self._with_sas(f"{self.base}/{quote(self.prefix + path, safe='/-_.~')}")
 
 
+def walk_dirs(root: str, list_dir: Callable[[str], list[tuple[str, bool, int | None, float | None]]]) -> list[Entry]:
+    """Every file below `root` on a server listed one folder at a time: list_dir(folder) gives
+    (name, is a folder, size, modified as a timestamp)."""
+    found, folders = [], [""]
+    while folders:
+        rel = folders.pop()
+        for name, is_dir, size, mtime in sorted(list_dir(f"{root}{rel}")):
+            if name.startswith(".") or name in ("", "."):
+                continue
+            if is_dir:
+                folders.append(f"{rel}{name}/")
+            else:
+                found.append(Entry(f"{rel}{name}", size, iso(datetime.fromtimestamp(mtime or 0, timezone.utc)),
+                                   f"{size}-{int(mtime or 0)}"))
+    return sorted(found, key=lambda e: e.path)
+
+
+class Ftp:
+    """An FTP server (ftp://), or FTP over TLS (ftps://): a supplier's drop box. Login from the Source's
+    secret (username, password), else anonymous."""
+
+    def __init__(self, host: str, port: int | None, root: str, tls: bool, credentials: Callable[[str], str | None]):
+        # ftp://host/path/ is relative to the folder the login lands in (RFC 1738), as curl reads it
+        self.host, self.port, self.root, self.tls = host, port or 21, root, tls
+        self.user, self.password = credentials("username") or "anonymous", credentials("password") or ""
+
+    def _connect(self):
+        import ftplib
+
+        ftp = (ftplib.FTP_TLS if self.tls else ftplib.FTP)(timeout=TIMEOUT)
+        try:
+            ftp.connect(self.host, self.port)
+            ftp.login(self.user, self.password)
+            if self.tls:
+                ftp.prot_p()  # the files too, not only the login
+        except (ftplib.Error, OSError) as e:
+            raise SourceError(f"can't log in to ftp{'s' if self.tls else ''}://{self.host}:{self.port} as {self.user}: {e}") from None
+        return ftp
+
+    def _list(self, ftp, folder: str):
+        import ftplib
+
+        try:
+            return [(name, facts.get("type") == "dir", int(facts["size"]) if "size" in facts else None,
+                     datetime.strptime(facts["modify"][:14], "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc).timestamp()
+                     if "modify" in facts else None)
+                    for name, facts in ftp.mlsd(folder, facts=["type", "size", "modify"]) if facts.get("type") in ("dir", "file")]
+        except ftplib.error_perm:  # an old server without MLSD: names, then each file's size and time
+            out = []
+            for path in ftp.nlst(folder):
+                name = path.rstrip("/").rsplit("/", 1)[-1]
+                try:
+                    size = ftp.size(f"{folder}{name}")
+                    stamp = ftp.voidcmd(f"MDTM {folder}{name}").split()[-1]
+                    out.append((name, False, size, datetime.strptime(stamp[:14], "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc).timestamp()))
+                except ftplib.error_perm:  # not a file: a folder
+                    out.append((name, True, None, None))
+            return out
+
+    def entries(self) -> list[Entry]:
+        import ftplib
+
+        ftp = self._connect()
+        try:
+            return walk_dirs(self.root, lambda folder: self._list(ftp, folder))
+        except (ftplib.Error, OSError) as e:
+            raise SourceError(f"can't list ftp://{self.host}/{self.root}: {e}") from None
+        finally:
+            ftp.close()
+
+    def address(self, path: str) -> str:
+        return f"ftp{'s' if self.tls else ''}://{self.host}/{self.root}{path}"
+
+    def fetch(self, path: str, dest: Path) -> str:
+        import ftplib
+
+        sha = hashlib.sha256()
+        ftp = self._connect()
+        try:
+            with open(dest, "wb") as out:
+                def write(chunk: bytes):
+                    out.write(chunk)
+                    sha.update(chunk)
+                ftp.retrbinary(f"RETR {self.root}{path}", write, blocksize=1 << 20)
+        except (ftplib.Error, OSError) as e:
+            raise SourceError(f"can't download {path} from ftp://{self.host}: {e}") from None
+        finally:
+            ftp.close()
+        return sha.hexdigest()
+
+
+class Sftp:
+    """An SFTP server (sftp://user@host/path/). Login from the Source's secret: privateKey (with passphrase if it
+    has one) or password. The server's key must be pinned, options.hostKey (SHA256:..., as ssh-keygen -lf shows it)
+    or knownHosts in the secret (lines as in ~/.ssh/known_hosts): otherwise anyone between could stand in for it."""
+
+    def __init__(self, host: str, port: int | None, user: str | None, root: str,
+                 credentials: Callable[[str], str | None], options: dict):
+        self.host, self.port, self.root = host, port or 22, "/" + root
+        self.user = user or credentials("username")
+        self.credentials, self.host_key, self.known = credentials, options.get("hostKey"), credentials("knownHosts")
+        if not self.user:
+            raise SourceError(f"sftp://{host}: give the user, sftp://<user>@{host}/..., or username in the Source's secret")
+        if not self.host_key and not self.known:
+            raise SourceError(f"sftp://{host}: pin the server's key, options.hostKey: SHA256:... (ssh-keyscan -p {self.port} "
+                              f"{host} | ssh-keygen -lf -), or knownHosts in the Source's secret")
+
+    def _trusted(self, key) -> bool:
+        fingerprint = "SHA256:" + base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip("=")
+        if self.host_key:
+            return hmac.compare_digest(self.host_key.strip(), fingerprint)
+        wanted = (key.get_name(), key.get_base64())
+        return any(tuple(line.split()[1:3]) == wanted for line in self.known.splitlines() if len(line.split()) >= 3)
+
+    def _connect(self):
+        try:
+            import paramiko
+        except ImportError:
+            raise SourceError("reading SFTP needs paramiko: pip install 'geoserver-dataops[sftp]' (the image has it)") from None
+        try:
+            transport = paramiko.Transport((self.host, self.port))
+            transport.start_client(timeout=TIMEOUT)
+            if not self._trusted(transport.get_remote_server_key()):
+                transport.close()
+                raise SourceError(f"sftp://{self.host}: the server's key isn't the pinned one; if it really changed, pin the new one")
+            private = self.credentials("privateKey")
+            if private:
+                transport.auth_publickey(self.user, private_key(private, self.credentials("passphrase")))
+            else:
+                transport.auth_password(self.user, self.credentials("password") or "")
+            return paramiko.SFTPClient.from_transport(transport)
+        except (paramiko.SSHException, OSError) as e:
+            raise SourceError(f"can't log in to sftp://{self.user}@{self.host}:{self.port}: {e}") from None
+
+    def entries(self) -> list[Entry]:
+        import stat
+
+        sftp = self._connect()
+        try:
+            return walk_dirs(self.root, lambda folder: [(a.filename, stat.S_ISDIR(a.st_mode or 0), a.st_size, a.st_mtime)
+                                                        for a in sftp.listdir_attr(folder)])
+        except OSError as e:
+            raise SourceError(f"can't list sftp://{self.host}{self.root}: {e}") from None
+        finally:
+            sftp.get_channel().get_transport().close()
+
+    def address(self, path: str) -> str:
+        return f"sftp://{self.user}@{self.host}{self.root}{path}"
+
+    def fetch(self, path: str, dest: Path) -> str:
+        sha = hashlib.sha256()
+        sftp = self._connect()
+        try:
+            with sftp.open(f"{self.root}{path}", "rb") as src, open(dest, "wb") as out:
+                src.prefetch()
+                while chunk := src.read(1 << 20):
+                    out.write(chunk)
+                    sha.update(chunk)
+        except OSError as e:
+            raise SourceError(f"can't download {path} from sftp://{self.host}: {e}") from None
+        finally:
+            sftp.get_channel().get_transport().close()
+        return sha.hexdigest()
+
+
+def private_key(text: str, passphrase: str | None):
+    """An SSH private key from its text, whatever its type."""
+    import io
+
+    import paramiko
+
+    for kind in (paramiko.Ed25519Key, paramiko.ECDSAKey, paramiko.RSAKey):
+        try:
+            return kind.from_private_key(io.StringIO(text.strip() + "\n"), password=passphrase)
+        except paramiko.SSHException:
+            continue
+    raise SourceError("privateKey in the Source's secret isn't an Ed25519, ECDSA or RSA private key (or its passphrase is wrong)")
+
+
 # --- the source type
 
 class Files:
@@ -249,17 +439,25 @@ class Files:
     def __init__(self, api_key: str | None = None, url: str | None = None, session: requests.Session | None = None,
                  credentials: Callable[[str], str | None] | None = None, options: dict | None = None):
         if not url:
-            raise SourceError("a files source needs where the files are: spec.url in the Source, such as file:///mnt/drop/, "
-                              "s3://bucket/prefix/, gs://bucket/prefix/ or az://account/container/prefix/")
+            raise SourceError("a files source needs where the files are: spec.url in the Source, such as /mnt/drop/, "
+                              "s3://bucket/prefix/, gs://bucket/prefix/, az://account/container/prefix/, "
+                              "sftp://user@host/path/ or ftp://host/path/")
         self.url, options = url, options or {}
         credentials = credentials or (lambda key: None)
         session = session or http_session()
+        if is_local_path(url):  # /srv/drop/, D:\\drop\\: a folder, as file:// would be
+            self.where = Folder(url)
+            return
         parsed = urlparse(url)
         prefix = parsed.path.lstrip("/")
         if prefix and not prefix.endswith("/"):
             prefix += "/"
         if parsed.scheme == "file":
             self.where = Folder(parsed.path)
+        elif parsed.scheme in ("ftp", "ftps"):
+            self.where = Ftp(parsed.hostname or "", parsed.port, prefix, parsed.scheme == "ftps", credentials)
+        elif parsed.scheme == "sftp":
+            self.where = Sftp(parsed.hostname or "", parsed.port, parsed.username, prefix, credentials, options)
         elif parsed.scheme in ("s3", "gs"):
             self.where = Bucket(parsed.netloc, prefix, options.get("endpoint"), options.get("region"),
                                 bool(options.get("pathStyle", bool(options.get("endpoint")))), credentials, session,
@@ -310,7 +508,7 @@ class Files:
 
     def fetch(self, download: Download, dest: Path) -> str:
         """Copy the file to `dest`; returns its SHA-256."""
-        if isinstance(self.where, Folder):
+        if isinstance(self.where, (Folder, Ftp, Sftp)):
             try:
                 return self.where.fetch(download.id, dest)
             except OSError as e:
