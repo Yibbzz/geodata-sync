@@ -41,6 +41,7 @@ from urllib.parse import quote, urlencode, urlparse
 import requests
 
 from . import Download, Listing, NotFound, Product, SourceError, http_session, matches
+from . import identity as cloud
 from .formats import by_extension
 
 TIMEOUT = 60
@@ -140,11 +141,21 @@ class Bucket:
     """S3 and what speaks its API: listed with ListObjects, read through signed addresses."""
 
     def __init__(self, bucket: str, prefix: str, endpoint: str | None, region: str | None, path_style: bool,
-                 credentials: Callable[[str], str | None], session: requests.Session, google: bool = False):
+                 credentials: Callable[[str], str | None], session: requests.Session, google: bool = False,
+                 identity: str | None = None):
         self.bucket, self.prefix, self.session = bucket, prefix, session
         self.key, self.secret = credentials("accessKeyId"), credentials("secretAccessKey")
         self.token = credentials("sessionToken")
         self.google = google
+        if not (self.key and self.secret):  # no keys in the Secret: the cloud's own identity for this pod or machine
+            if google:
+                bearer = cloud.google_token(session, identity)
+                if bearer:  # an OAuth token: sent in a header, so addresses aren't signed
+                    session.headers["Authorization"] = f"Bearer {bearer}"
+            else:
+                keys = cloud.aws_keys(session, region, identity)
+                if keys:
+                    self.key, self.secret, self.token = keys.key, keys.secret, keys.token
         if google:
             self.base, self.region = f"https://storage.googleapis.com/{bucket}", region or "auto"
         elif endpoint:
@@ -211,10 +222,14 @@ class Container:
     """Azure Blob Storage: listed with List Blobs, read with the SAS token, if any, in the address."""
 
     def __init__(self, account: str, container: str, prefix: str, endpoint: str | None,
-                 credentials: Callable[[str], str | None], session: requests.Session):
+                 credentials: Callable[[str], str | None], session: requests.Session, identity: str | None = None):
         self.base = f"{(endpoint or f'https://{account}.blob.core.windows.net').rstrip('/')}/{container}"
         self.prefix, self.session = prefix, session
         self.sas = (credentials("sasToken") or "").lstrip("?")
+        if not self.sas:  # no SAS token: a workload or managed identity's token, in a header
+            bearer = cloud.azure_token(session, identity)
+            if bearer:
+                session.headers.update({"Authorization": f"Bearer {bearer}", "x-ms-version": "2021-08-06"})
 
     def _with_sas(self, url: str) -> str:
         return f"{url}{'&' if '?' in url else '?'}{self.sas}" if self.sas else url
@@ -461,12 +476,13 @@ class Files:
         elif parsed.scheme in ("s3", "gs"):
             self.where = Bucket(parsed.netloc, prefix, options.get("endpoint"), options.get("region"),
                                 bool(options.get("pathStyle", bool(options.get("endpoint")))), credentials, session,
-                                google=parsed.scheme == "gs")
+                                google=parsed.scheme == "gs", identity=options.get("identity"))
         elif parsed.scheme == "az":
             container, _, rest = prefix.partition("/")
             if not container:
                 raise SourceError(f"{url}: give az://<account>/<container>/<prefix>")
-            self.where = Container(parsed.netloc, container, rest, options.get("endpoint"), credentials, session)
+            self.where = Container(parsed.netloc, container, rest, options.get("endpoint"), credentials, session,
+                                   identity=options.get("identity"))
         else:
             raise SourceError(f"{url}: a files source reads {', '.join(s + '://' for s in SCHEMES)} addresses")
 
@@ -502,6 +518,11 @@ class Files:
             raise NotFound(path)
         return self._product(entry)
 
+    @property
+    def session(self) -> requests.Session | None:
+        """The HTTP session a bucket's files are read with: it carries a cloud identity's token, if any."""
+        return getattr(self.where, "session", None)
+
     def download_url(self, download: Download) -> str:
         """A signed address for a bucket's file (fresh: good for an hour); a folder's file:// address."""
         return self.where.address(download.id)
@@ -514,5 +535,5 @@ class Files:
             except OSError as e:
                 raise SourceError(f"can't read {download.id} in {self.url}: {e.strerror or e}") from None
         from ..ingest import download as http_download
-        return http_download(self.download_url(download), dest)
+        return http_download(self.download_url(download), dest, session=self.where.session)
 

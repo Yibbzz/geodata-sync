@@ -157,7 +157,7 @@ def product_layers(src: ResolvedSource, product: Product, use_cache: bool = True
                 with open(local, "rb") as f:
                     layers = remote.archive_layers(f, str(local))
         else:
-            layers = remote.url_layers(address, file_name=d.file_name)
+            layers = remote.url_layers(address, session=getattr(src.client, "session", None), file_name=d.file_name)
     if len(layers) == 1 and is_pattern(product.id):  # named as sync names it: after the pattern, not this delivery
         layers[0].name = pattern_stem(product.id)
     save_layers(path, layers)

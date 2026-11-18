@@ -237,6 +237,14 @@
               "type": "string",
               "pattern": "^SHA256:",
               "description": "an SFTP server's key, as ssh-keygen -lf shows it"
+            },
+            "identity": {
+              "enum": [
+                "aws",
+                "google",
+                "azure"
+              ],
+              "description": "for files on a bucket: also ask the machine's own cloud identity (an EC2 instance role, GKE or Compute Engine's service account, an Azure managed identity)"
             }
           }
         }

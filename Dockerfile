@@ -9,7 +9,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY geoserver_dataops/ geoserver_dataops/
-RUN pip install --no-cache-dir '.[overture,sftp]' && rm -rf /app
+RUN pip install --no-cache-dir '.[overture,sftp,google]' && rm -rf /app
 
 # The project files go here (docs/kubernetes/Dockerfile copies them in), the Secrets under /etc/dataops/secrets
 WORKDIR /project
