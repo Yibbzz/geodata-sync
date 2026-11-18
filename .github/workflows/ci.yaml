@@ -32,6 +32,18 @@ jobs:
           SFTP_USERS: drop:dropPass123:1001::upload
         ports:
           - 52222:22
+      mariadb:
+        image: mariadb@sha256:d36f18d65a0459510b8b0f643b226a6d299e3206486e2b64ff20754a6d291707  # 11.8
+        env:
+          MARIADB_ROOT_PASSWORD: rootpw
+          MARIADB_DATABASE: assets
+        ports:
+          - 53306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
       ftp:
         image: delfer/alpine-ftp-server@sha256:b27013e7436cea343826ba7edb77aa3a8b2d22df14e366b82d10a3b0b5ecc880
         env:
@@ -60,6 +72,7 @@ jobs:
           TEST_DB_PASSWORD: postgres
           TEST_SFTP_PORT: '52222'
           TEST_FTP_PORT: '52121'
+          TEST_MYSQL_PORT: '53306'
         run: pytest
       - name: Validate the example projects
         run: for p in examples/*/; do dataops validate "$p" || exit 1; done

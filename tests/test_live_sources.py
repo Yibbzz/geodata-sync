@@ -39,6 +39,7 @@ CASES = {
     "csw": ("{ type: csw, url: https://www.geocat.ch/geonetwork/srv/eng/csw }",
             "{ product: 6e2b7a2b-4a67-48ad-9829-2d789454250d }", None),
     "atom": ("{ type: atom, url: https://service.pdok.nl/rvo/natura2000/atom/index.xml }", "{ product: natura_2000 }", None),
+    "data-europa": ("{ type: data-europa }", "{ product: pdcn_isos_p-canton-geneve }", None),
     # GeoNode's public demo (most of its datasets' exports are broken there; this one works): a failure may be the demo's
     "geonode": ("{ type: geonode, url: https://stable.demo.geonode.org }", "{ product: 'geonode:cfp_401_anillos' }", None),
     "socrata": ("{ type: socrata, url: https://data.cityofnewyork.us }", "{ product: 4j29-i5ry }", None),
@@ -49,6 +50,10 @@ CASES = {
     "stac-planetary-computer": ("{ type: stac, url: https://planetarycomputer.microsoft.com/api/stac/v1 }",
                                 f"{{ product: esa-worldcover, stac: {{ bbox: {OAKHAM}, asset: map, datetime: '2021-01-01/2021-12-31' }}, "
                                 "raster: { path: rasters/worldcover.tif } }", None),
+    "usgs": ("{ type: usgs }", "{ product: 'National Elevation Dataset (NED) 1/3 arc-second', "
+             "usgs: { bbox: [-105.30, 40.00, -105.25, 40.05], format: GeoTIFF }, raster: { path: rasters/usgs.tif } }", None),
+    "usgs-vector": ("{ type: usgs }", "{ product: 'National Structures Dataset (NSD)', "
+                    "usgs: { bbox: [-77.05, 38.88, -77.00, 38.92], format: GeoPackage }, tables: { Struct_Point: {} } }", None),
     "overture": ("{ type: overture }", f"{{ product: places/place, overture: {{ bbox: {OAKHAM} }} }}", None),
     "geofabrik": ("{ type: geofabrik }", "{ product: rutland, tables: { gis_osm_places_free_1: {} } }", None),
     "overpass": ("{ type: overpass }", f"{{ product: 'nwr[amenity=pub]', overpass: {{ bbox: {OAKHAM} }} }}", None),
