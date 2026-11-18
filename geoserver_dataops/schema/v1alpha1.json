@@ -220,7 +220,7 @@
         },
         "options": {
           "type": "object",
-          "description": "Settings of the source type: for files, endpoint (an S3-compatible store's address), region and pathStyle, or an SFTP server's hostKey; a plugin's own",
+          "description": "Settings of the source type: for files, endpoint (an S3-compatible store's address), region and pathStyle, or an SFTP server's hostKey; for stac, login, tokenUrl, clientId, tokenHosts, and endpoint and region for s3:// files; a plugin's own",
           "properties": {
             "endpoint": {
               "type": "string",
@@ -245,6 +245,30 @@
                 "azure"
               ],
               "description": "for files on a bucket: also ask the machine's own cloud identity (an EC2 instance role, GKE or Compute Engine's service account, an Azure managed identity)"
+            },
+            "login": {
+              "enum": [
+                "copernicus"
+              ],
+              "description": "stac: where a username and password log in (Copernicus Data Space)"
+            },
+            "tokenUrl": {
+              "type": "string",
+              "pattern": "^https://",
+              "description": "stac: an OAuth token address a username and password log in at"
+            },
+            "clientId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "stac: the OAuth client the token address expects"
+            },
+            "tokenHosts": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "stac: other hosts the login token may be sent to (it goes only to the catalogue's own domain otherwise)"
             }
           }
         }

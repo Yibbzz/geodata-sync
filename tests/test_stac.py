@@ -176,3 +176,86 @@ def test_dates_are_sent_as_full_rfc3339_times():
     assert rfc3339("2024-06-01/2024-06-30") == "2024-06-01T00:00:00Z/2024-06-30T23:59:59Z"
     assert rfc3339("2024-06-01/..") == "2024-06-01T00:00:00Z/.."
     assert rfc3339("2025-08-31T10:00:00Z") == "2025-08-31T10:00:00Z"
+
+
+class LoginServer:
+    """Files that need a bearer token (else a login page, as Earthdata's redirect gives), and a token endpoint
+    for a username and password (as Copernicus Data Space's)."""
+
+    def __init__(self):
+        import http.server
+        import threading
+        from urllib.parse import parse_qs
+        self.seen = []
+        server = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                form = {k: v[0] for k, v in parse_qs(self.rfile.read(int(self.headers["Content-Length"])).decode()).items()}
+                ok = (form.get("grant_type"), form.get("username"), form.get("password"), form.get("client_id")) == \
+                    ("password", "me", "pw", "cdse-public")
+                self.reply(200 if ok else 401, b'{"access_token": "from-password"}' if ok else b"{}")
+
+            def do_GET(self):
+                server.seen.append((self.path, self.headers.get("Authorization")))
+                if self.headers.get("Authorization") in ("Bearer t1", "Bearer from-password"):
+                    return self.reply(200, b"II*\x00 the file")
+                self.reply(200, b"<!DOCTYPE html><html><body>Earthdata Login</body></html>")
+
+            def reply(self, status, body):
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        self.httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        self.port = self.httpd.server_address[1]
+
+
+@pytest.fixture
+def login_server():
+    s = LoginServer()
+    yield s
+    s.httpd.shutdown()
+
+
+def test_a_token_is_sent_with_the_catalogues_own_files_only(login_server, tmp_path):
+    from geoserver_dataops.sources import Download
+    stac = STAC(url=f"http://127.0.0.1:{login_server.port}/stac", credentials=lambda k: {"token": "t1"}.get(k))
+    sha = stac.fetch(Download(format="COG", url=f"http://127.0.0.1:{login_server.port}/files/a.tif"), tmp_path / "a.tif")
+    assert (tmp_path / "a.tif").read_bytes().startswith(b"II*") and len(sha) == 64
+    # another domain (localhost isn't 127.0.0.1's): no token, so the login page, which says a login is needed
+    with pytest.raises(SourceError, match="needs a login"):
+        stac.fetch(Download(format="COG", url=f"http://localhost:{login_server.port}/files/b.tif"), tmp_path / "b.tif")
+    assert login_server.seen[-1] == ("/files/b.tif", None)
+
+
+def test_a_username_and_password_log_in_for_a_token(login_server, tmp_path):
+    from geoserver_dataops.sources import Download
+    from geoserver_dataops.sources import stac as stac_module
+    login = {"tokenUrl": f"http://127.0.0.1:{login_server.port}/token", "clientId": "cdse-public"}
+    stac_module.LOGINS["test"] = login
+    try:
+        stac = STAC(url=f"http://127.0.0.1:{login_server.port}/stac", options={"login": "test"},
+                    credentials=lambda k: {"username": "me", "password": "pw"}.get(k))
+        stac.fetch(Download(format="COG", url=f"http://127.0.0.1:{login_server.port}/files/a.tif"), tmp_path / "a.tif")
+        assert login_server.seen[-1] == ("/files/a.tif", "Bearer from-password")
+        wrong = STAC(url=f"http://127.0.0.1:{login_server.port}/stac", options={"login": "test"},
+                     credentials=lambda k: {"username": "me", "password": "nope"}.get(k))
+        with pytest.raises(SourceError, match="refused the login"):
+            wrong.bearer()
+    finally:
+        del stac_module.LOGINS["test"]
+
+
+def test_an_s3_file_is_read_through_the_options_endpoint_with_the_secrets_keys():
+    stac = STAC(url="https://stac.dataspace.copernicus.eu/v1", options={"endpoint": "https://eodata.dataspace.copernicus.eu"},
+                credentials=lambda k: {"accessKeyId": "k", "secretAccessKey": "s"}.get(k))
+    href = stac.asset_href({"href": "s3://eodata/Sentinel-2/x/B04.jp2", "alternate": {"https": {"href": "https://download.example/x"}}})
+    assert href.startswith("https://eodata.dataspace.copernicus.eu/eodata/Sentinel-2/x/B04.jp2?") and "X-Amz-Signature=" in href
+    assert STAC(url="https://stac.dataspace.copernicus.eu/v1").asset_href(
+        {"href": "s3://eodata/x/B04.jp2", "alternate": {"https": {"href": "https://download.example/x"}}}) == "https://download.example/x"

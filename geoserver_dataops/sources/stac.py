@@ -27,6 +27,9 @@ MAX_PAGES = 50  # of /collections
 GEOJSON = "application/geo+json, application/json;q=0.9"
 RASTER_TYPES = ("image/tiff", "image/jp2", "application/x-hdf")
 PLANETARY_COMPUTER = "planetarycomputer.microsoft.com"
+# options.login: where a username and password get a token
+LOGINS = {"copernicus": {"tokenUrl": "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token",
+                         "clientId": "cdse-public"}}
 SIGN = f"https://{PLANETARY_COMPUTER}/api/sas/v1/sign"
 AZURE_BLOBS = ".blob.core.windows.net"
 
@@ -82,13 +85,89 @@ class STAC:
     name = "STAC API"
     formats = ["COG", "GeoTIFF"]
 
-    def __init__(self, api_key: str | None = None, url: str | None = None, session: requests.Session | None = None):
+    def __init__(self, api_key: str | None = None, url: str | None = None, session: requests.Session | None = None,
+                 credentials=None, options: dict | None = None):
         if not url:
             raise SourceError("a stac source needs the STAC API's address: spec.url in the Source, or --url "
                               "(e.g. https://earth-search.aws.element84.com/v1)")
         # A collection's or the search's address still works
         self.url = url.split("?", 1)[0].rstrip("/").split("/collections")[0].removesuffix("/search")
         self.session = session or http_session()
+        self.credentials = credentials or (lambda key: None)
+        self.options = options or {}
+        login = LOGINS.get(self.options.get("login") or "", {})
+        self.token_url = self.options.get("tokenUrl") or login.get("tokenUrl")
+        self.client_id = self.options.get("clientId") or login.get("clientId")
+        self._bearer: str | None = None
+
+    # --- logins: catalogues whose files need one (NASA Earthdata, Copernicus Data Space)
+
+    def bearer(self) -> str | None:
+        """The token the files are asked for with: the secret's `token`, or one its username and password get."""
+        if self._bearer is None:
+            token = self.credentials("token")
+            user, password = self.credentials("username"), self.credentials("password")
+            if not token and user and password:
+                if not self.token_url:
+                    raise SourceError("username and password need where to log in: options.tokenUrl (and clientId), "
+                                      "or options.login: copernicus")
+                try:
+                    r = self.session.post(self.token_url, data={"grant_type": "password", "username": user, "password": password,
+                                                                "client_id": self.client_id or ""}, timeout=TIMEOUT)
+                except requests.RequestException as e:
+                    raise SourceError(f"can't reach {self.token_url}: {e}") from None
+                if r.status_code != 200:
+                    raise SourceError(f"{self.token_url} refused the login (HTTP {r.status_code}): check username and password")
+                token = r.json().get("access_token")
+            self._bearer = token or ""
+        return self._bearer or None
+
+    def sends_token_to(self, url: str) -> bool:
+        """The token goes only to the catalogue's own domain (cmr.earthdata.nasa.gov -> nasa.gov's data hosts) and
+        the hosts options.tokenHosts names: not to wherever an item's file happens to be."""
+        host = (urlparse(url).hostname or "").lower()
+        if any(host == h or host.endswith("." + h) for h in self.options.get("tokenHosts") or []):
+            return True
+        domain = ".".join((urlparse(self.url).hostname or "").lower().split(".")[-2:])
+        return bool(domain) and (host == domain or host.endswith("." + domain))
+
+    def asset_href(self, asset: dict) -> str:
+        """Where to download an asset: an s3:// file through the S3 endpoint the options name, with the secret's keys
+        (Copernicus Data Space's eodata); else over https (an alternate, or the bucket's own address)."""
+        href = asset["href"]
+        key, secret = self.credentials("accessKeyId"), self.credentials("secretAccessKey")
+        endpoint = self.options.get("endpoint")
+        parsed = urlparse(href)
+        if parsed.scheme == "s3" and endpoint and key and secret:
+            from .files import presign
+            return presign("GET", f"{endpoint.rstrip('/')}/{parsed.netloc}{parsed.path}", {},
+                           self.options.get("region") or "default", key, secret, self.credentials("sessionToken"))
+        return https_href(asset)
+
+    def fetch(self, download: Download, dest) -> str:
+        """Download a file, with the login when it goes to the catalogue's own hosts. A login page in its place
+        (Earthdata's, when no token is given) says a login is needed."""
+        from ..ingest import download as http_download
+        url = self.download_url(download)
+        session = self.session
+        bearer = self.bearer() if self.sends_token_to(url) else None
+        if bearer:
+            session = http_session()
+            session.headers["Authorization"] = f"Bearer {bearer}"
+        try:
+            sha = http_download(url, dest, download.md5, session=session)
+        except requests.HTTPError as e:
+            code = e.response.status_code if e.response is not None else 0
+            if code in (401, 403):
+                raise SourceError(f"{urlparse(url).hostname} refused the file (HTTP {code}): it needs a login "
+                                  "(token, or username and password, in the Source's secret)") from None
+            raise
+        with open(dest, "rb") as f:
+            start = f.read(512).lstrip().lower()
+        if start.startswith((b"<!doctype html", b"<html")):
+            raise SourceError(f"{urlparse(url).hostname} answered with a web page, not the file: it needs a login "
+                              "(token, or username and password, in the Source's secret)")
+        return sha
 
     def _get(self, url: str, what: str, params: dict | None = None, body: dict | None = None):
         try:
@@ -186,7 +265,7 @@ class STAC:
             if not asset or not asset.get("href"):
                 known = ", ".join(sorted(item.get("assets") or {}))
                 raise SourceError(f"item {item['id']} has no asset '{key}' (it has: {known})")
-            href = https_href(asset)
+            href = self.asset_href(asset)
             if urlparse(href).scheme not in ("http", "https"):
                 raise SourceError(f"item {item['id']}'s '{key}' is at {href}, not an http(s) address dataops can download")
             name = PurePosixPath(urlparse(href).path).name or "asset"

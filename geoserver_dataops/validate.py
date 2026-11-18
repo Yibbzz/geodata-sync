@@ -24,7 +24,7 @@ SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads", "overture", "g
 SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture", "geofabrik", "overpass"}  # a mirror, another Overpass instance
 SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw", "geofabrik", "atom"}  # products with several downloads to pick from  # need the Source's spec.url
 FILE_SCHEMES = ("file://", "s3://", "gs://", "az://", "sftp://", "ftp://", "ftps://", "/")
-SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft", "koordinates", "files"}
+SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft", "koordinates", "files", "stac"}
 SOURCES_NEEDING_KEYS = {"koordinates"}  # send the credentials secret's apiKey; the others send nothing
 
 
@@ -143,7 +143,7 @@ def check_references(project: Project) -> list[Problem]:
                                     "sftp://user@host/path/ or ftp://host/path/", s.label))
         if kind != "files" and str(s.spec.get("url") or "https://").split("://")[0] not in ("http", "https"):
             problems.append(Problem(s.file, s.line(("spec", "url")), f"spec.url: a {kind} source's address is http(s)://", s.label))
-        if kind != "files" and s.spec.get("options"):
+        if kind not in ("files", "stac") and s.spec.get("options"):
             problems.append(Problem(s.file, s.line(("spec", "options")), f"spec.options: not used by a {kind} source", s.label, "warning"))
         if kind in SOURCES_WITH_ADDRESSES and not s.spec.get("url"):
             problems.append(Problem(s.file, s.line(("spec",)), f"spec.url: a {kind} source needs its address, e.g. https://data.gov.uk", s.label))

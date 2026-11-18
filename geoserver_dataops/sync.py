@@ -197,7 +197,10 @@ def sync_raster(conn, dataset: Resource, src, product: Product, last, started: d
             downloads, hashes = [], []
             for part in product.parts:
                 downloads.append(work / "parts" / Path(part.file_name).name)
-                hashes.append(ingest.download(src.client.download_url(part), downloads[-1], part.md5))
+                if hasattr(src.client, "fetch"):  # a source that downloads its files itself (with a login, say)
+                    hashes.append(src.client.fetch(part, downloads[-1]))
+                else:
+                    hashes.append(ingest.download(src.client.download_url(part), downloads[-1], part.md5))
             sha = hashlib.sha256("".join(hashes).encode()).hexdigest()
         else:
             downloads = [work / (Path(chosen.file_name).name if chosen.file_name else "download")]
