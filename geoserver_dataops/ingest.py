@@ -272,6 +272,10 @@ def check_unpacked_size(size: int) -> None:
 
 def file_layers(path: Path, work: Path) -> list[tuple[str, str, str | None]]:
     """(GDAL path, layer, CRS) of every layer in a downloaded file, unzipping it first."""
+    with open(path, "rb") as f:
+        said = remote.service_error(f.read(4096))
+    if said:
+        raise LoadError(f"the server answered with an error, not data: {said}")
     if zipfile.is_zipfile(path):
         out = work / "extracted"
         with zipfile.ZipFile(path) as z:

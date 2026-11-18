@@ -180,6 +180,13 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
     return message + "".join(f"\n  note: {n}" for n in notes), tables
 
 
+def area_of(dataset: Resource, source_type: str) -> list[float] | None:
+    """A selection's area ([west, south, east, north]), which its raster is cropped to: the bbox in the Dataset's block
+    for its source type (stac, usgs). Other types have none (a url Dataset's `url` is the file's address)."""
+    block = dataset.spec.get(source_type)
+    return block.get("bbox") if isinstance(block, dict) else None
+
+
 def sync_raster(conn, dataset: Resource, src, product: Product, last, started: datetime, force: bool,
                 project: Resource, project_crs: str) -> tuple[str, list[str]]:
     """Download a raster product and make it the dataset's COG on the data volume."""
@@ -192,7 +199,12 @@ def sync_raster(conn, dataset: Resource, src, product: Product, last, started: d
         return f"{dataset.name}: up to date ({discover.version(last.version)})", []
     with tempfile.TemporaryDirectory(prefix="geoserver-dataops-") as tmp:
         work = Path(tmp)
-        if product.parts:  # several files, one raster: the digest of theirs stands for them
+        if product.parts and all(part.remote for part in product.parts):
+            # Cloud-Optimised GeoTIFFs read where they are (raster.REMOTE): nothing downloaded; their list and
+            # versions (the product's version) stand for them
+            downloads = [f"{raster.REMOTE}{src.client.download_url(part)}" for part in product.parts]
+            sha = hashlib.sha256(f"{product.version}|{'|'.join(downloads)}".encode()).hexdigest()
+        elif product.parts:  # several files, one raster: the digest of theirs stands for them
             (work / "parts").mkdir()
             downloads, hashes = [], []
             for part in product.parts:
@@ -215,7 +227,7 @@ def sync_raster(conn, dataset: Resource, src, product: Product, last, started: d
             return f"{dataset.name}: up to date (same file{'s' if product.parts else ''} as last time)", []
         t0 = time.monotonic()
         pixels = raster.load(downloads, work, path, options.get("crs"), project_crs, project.spec.get("backups", 3), options.get("nodata"),
-                             area=(dataset.spec.get("stac") or {}).get("bbox"))  # a STAC selection is cropped to its area
+                             area=area_of(dataset, src.type))
     version = product.version or f"sha256:{sha[:16]}"
     ingest.record(conn, dataset.name, version, chosen.format, "success", started, rows=pixels, sha=sha, tables=[path])
     return (f"{dataset.name}: loaded {discover.version(version)} in {time.monotonic() - t0:.0f}s: "

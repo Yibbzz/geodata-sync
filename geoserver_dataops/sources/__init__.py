@@ -48,6 +48,7 @@ class Download:
     name: str = ""  # the provider's title for it
     loadable: bool = True  # False for links dataops can't load (web pages, map images)
     service: bool = False  # a feature service (WFS, OGC API Features), not a file
+    remote: bool = False  # a Cloud-Optimised GeoTIFF read where it is (only the area needed), not downloaded
 
     def to_dict(self) -> dict:
         return {
@@ -129,9 +130,12 @@ def built_in_types() -> dict[str, type]:
     from .arcgis import ArcGIS
     from .atom import Atom
     from .catalogue import CSW, OGCAPIRecords
+    from .database import Database
+    from .europa import DataEuropa
     from .files import Files
     from .ckan import CKAN
     from .geofabrik import Geofabrik
+    from .geonode import GeoNode
     from .koordinates import Koordinates
     from .ogcapi import OGCAPIFeatures
     from .opendata import OpenDataSoft, Socrata
@@ -140,9 +144,10 @@ def built_in_types() -> dict[str, type]:
     from .stac import STAC
     from .os_downloads import OSDownloads
     from .url import URL
+    from .usgs import USGS
     from .wfs import WFS
 
     return {"os-downloads": OSDownloads, "ckan": CKAN, "url": URL, "wfs": WFS, "ogc-api-features": OGCAPIFeatures, "arcgis": ArcGIS, "stac": STAC,
             "ogc-api-records": OGCAPIRecords, "csw": CSW, "socrata": Socrata, "opendatasoft": OpenDataSoft,
             "overture": Overture, "geofabrik": Geofabrik,
-            "koordinates": Koordinates, "atom": Atom, "overpass": Overpass, "files": Files}
+            "koordinates": Koordinates, "atom": Atom, "overpass": Overpass, "files": Files, "database": Database, "data-europa": DataEuropa, "usgs": USGS, "geonode": GeoNode}
