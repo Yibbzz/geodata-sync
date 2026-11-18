@@ -189,7 +189,7 @@
         "type": {
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9-]*$",
-          "description": "A source type: os-downloads, url, ckan, ogc-api-features, wfs, arcgis, stac, ogc-api-records, csw, socrata, opendatasoft, overture, geofabrik, koordinates, atom, overpass, files, or one a plugin adds (docs/plugins.md)",
+          "description": "A source type: os-downloads, url, ckan, ogc-api-features, wfs, arcgis, stac, ogc-api-records, csw, socrata, opendatasoft, overture, geofabrik, koordinates, atom, overpass, files, data-europa, or one a plugin adds (docs/plugins.md)",
           "examples": [
             "os-downloads",
             "url",
