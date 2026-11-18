@@ -183,7 +183,10 @@ def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, datas
     ingest.record(conn, dataset.name, version, chosen.format, "success", started,
                   rows=rows, dropped=dropped, sha=sha, tables=tables)
     detail = ", ".join(f"{db.live}.{s.layer.table} ({s.rows:,} rows)" for s in staged)
-    notes = ([f"{dropped:,} invalid {'geometry' if dropped == 1 else 'geometries'} left out"] if dropped else [])
+    fixed = sum(s.repaired for s in staged)
+    notes = ([f"{fixed:,} invalid {'geometry' if fixed == 1 else 'geometries'} repaired"] if fixed else [])
+    notes += ([f"{dropped:,} invalid {'geometry' if dropped == 1 else 'geometries'} left out: "
+               f"{'it' if dropped == 1 else 'they'} couldn't be repaired"] if dropped else [])
     notes += [s.note for s in staged if s.note]
     message = f"{dataset.name}: loaded {discover.version(version)} in {time.monotonic() - t0:.0f}s: {detail}"
     return message + "".join(f"\n  note: {n}" for n in notes), tables
