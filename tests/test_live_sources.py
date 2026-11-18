@@ -48,6 +48,10 @@ CASES = {
     "stac-planetary-computer": ("{ type: stac, url: https://planetarycomputer.microsoft.com/api/stac/v1 }",
                                 f"{{ product: esa-worldcover, stac: {{ bbox: {OAKHAM}, asset: map, datetime: '2021-01-01/2021-12-31' }}, "
                                 "raster: { path: rasters/worldcover.tif } }", None),
+    "usgs": ("{ type: usgs }", "{ product: 'National Elevation Dataset (NED) 1/3 arc-second', "
+             "usgs: { bbox: [-105.30, 40.00, -105.25, 40.05], format: GeoTIFF }, raster: { path: rasters/usgs.tif } }", None),
+    "usgs-vector": ("{ type: usgs }", "{ product: 'National Structures Dataset (NSD)', "
+                    "usgs: { bbox: [-77.05, 38.88, -77.00, 38.92], format: GeoPackage }, tables: { Struct_Point: {} } }", None),
     "overture": ("{ type: overture }", f"{{ product: places/place, overture: {{ bbox: {OAKHAM} }} }}", None),
     "geofabrik": ("{ type: geofabrik }", "{ product: rutland, tables: { gis_osm_places_free_1: {} } }", None),
     "overpass": ("{ type: overpass }", f"{{ product: 'nwr[amenity=pub]', overpass: {{ bbox: {OAKHAM} }} }}", None),

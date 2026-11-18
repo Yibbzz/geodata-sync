@@ -19,9 +19,9 @@ from .loader import Problem, Project, Resource, default_table
 from .sources import built_in_types, plugin_types
 
 SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis", "stac", "ogc-api-records", "csw",
-                         "socrata", "opendatasoft", "overture", "geofabrik", "koordinates", "atom", "overpass", "files", "database", "data-europa"}
-SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads", "overture", "geofabrik", "overpass", "data-europa"}
-SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture", "geofabrik", "overpass", "data-europa"}  # a mirror, another Overpass instance
+                         "socrata", "opendatasoft", "overture", "geofabrik", "koordinates", "atom", "overpass", "files", "database", "data-europa", "usgs"}
+SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads", "overture", "geofabrik", "overpass", "data-europa", "usgs"}
+SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture", "geofabrik", "overpass", "data-europa", "usgs"}  # a mirror, another Overpass instance
 SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw", "geofabrik", "atom", "data-europa"}  # products with several downloads to pick from  # need the Source's spec.url
 DATABASE_SCHEMES = ("postgresql", "postgres", "postgis", "mysql", "mariadb")
 FILE_SCHEMES = ("file://", "s3://", "gs://", "az://", "sftp://", "ftp://", "ftps://", "/")
@@ -184,7 +184,7 @@ def check_references(project: Project) -> list[Problem]:
                     problems.append(Problem(d.file, d.line(("spec",)), f"spec.{field}: required for a stac source: {what}", d.label))
         elif "stac" in d.spec:
             problems.append(Problem(d.file, d.line(("spec", "stac")), f"spec.stac: only used with a stac source, not {kind}", d.label))
-        for area_kind in ("overture", "overpass"):  # sources of the whole world: a Dataset names its area
+        for area_kind in ("overture", "overpass", "usgs"):  # sources of the whole world: a Dataset names its area
             if kind == area_kind and area_kind not in d.spec:
                 problems.append(Problem(d.file, d.line(("spec",)), f"spec.{area_kind}: required for an {area_kind} source: "
                                         "the area to load (bbox), as it covers the world", d.label))
