@@ -132,6 +132,7 @@ def built_in_types() -> dict[str, type]:
     from .files import Files
     from .ckan import CKAN
     from .geofabrik import Geofabrik
+    from .geonode import GeoNode
     from .koordinates import Koordinates
     from .ogcapi import OGCAPIFeatures
     from .opendata import OpenDataSoft, Socrata
@@ -145,4 +146,4 @@ def built_in_types() -> dict[str, type]:
     return {"os-downloads": OSDownloads, "ckan": CKAN, "url": URL, "wfs": WFS, "ogc-api-features": OGCAPIFeatures, "arcgis": ArcGIS, "stac": STAC,
             "ogc-api-records": OGCAPIRecords, "csw": CSW, "socrata": Socrata, "opendatasoft": OpenDataSoft,
             "overture": Overture, "geofabrik": Geofabrik,
-            "koordinates": Koordinates, "atom": Atom, "overpass": Overpass, "files": Files}
+            "koordinates": Koordinates, "atom": Atom, "overpass": Overpass, "files": Files, "geonode": GeoNode}

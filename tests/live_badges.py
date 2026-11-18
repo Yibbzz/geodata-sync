@@ -13,7 +13,7 @@ from pathlib import Path
 # badge id -> (label, the tests that decide it: test_live_sources' case, or a test's name)
 BADGES = {
     "ckan": "CKAN", "socrata": "Socrata", "opendatasoft": "OpenDataSoft", "arcgis": "ArcGIS Server and Online",
-    "arcgis-hub": "ArcGIS Hub", "csw": "CSW (GeoNetwork)", "atom": "INSPIRE Atom", "os-downloads": "Ordnance Survey",
+    "arcgis-hub": "ArcGIS Hub", "csw": "CSW (GeoNetwork)", "atom": "INSPIRE Atom", "geonode": "GeoNode (its demo)", "os-downloads": "Ordnance Survey",
     "wfs": "WFS", "ogc-api-features": "OGC API Features", "stac-earth-search": "STAC (Earth Search)",
     "stac-planetary-computer": "STAC (Planetary Computer)", "overture": "Overture Maps", "geofabrik": "OpenStreetMap (Geofabrik)",
     "overpass": "OpenStreetMap (Overpass)", "url": "A link", "files-s3": "Amazon S3", "files-gcs": "Google Cloud Storage",
