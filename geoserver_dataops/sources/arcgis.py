@@ -132,11 +132,14 @@ class ArcGIS:
         features = {s.rsplit("/", 1)[0] for s in found if s.endswith("/FeatureServer")}
         return sorted(s for s in found if s.endswith("/FeatureServer") or s.rsplit("/", 1)[0] not in features)
 
-    def _layers_of(self, service: str) -> list[Product]:
+    def _layers_of(self, service: str, left_out: list[tuple[str, str]] | None = None) -> list[Product]:
         try:
             data = self._json(service, service)
         except SourceError as e:  # a secured service, or one that is down: the others are still worth listing
-            print(f"dataops: note: {service} left out: {e}", file=sys.stderr)
+            if left_out is None:
+                print(f"dataops: note: {service} left out: {e}", file=sys.stderr)
+            else:
+                left_out.append((service, "needs a token" if "needs a token" in str(e) else str(e)))
             return []
         products = []
         for layer in (data.get("layers") or []) + (data.get("tables") or []):
@@ -152,9 +155,22 @@ class ArcGIS:
         if m and m.group("layer") is not None:
             p = self.product(self.scope)
             return Listing([p], 1)
-        services = self._services()
+        services, left_out = self._services(), []
         with ThreadPoolExecutor(max_workers=8) as pool:
-            layers = [p for ps in pool.map(self._layers_of, services) for p in ps]
+            layers = [p for ps in pool.map(lambda s: self._layers_of(s, left_out), services) for p in ps]
+        if left_out:
+            # One line, not one per service: an organisation's directory can hold hundreds it keeps private
+            secured = sorted(s for s, why in left_out if why == "needs a token")
+            other = sorted(left_out)
+            parts = []
+            if secured:
+                parts.append(f"{len(secured)} need a token ({', '.join(secured[:3])}{', ...' if len(secured) > 3 else ''}); "
+                             "dataops reads public services only")
+            failed = [(s, why) for s, why in other if why != "needs a token"]
+            if failed:
+                parts.append(f"{len(failed)} didn't answer: " + "; ".join(f"{s}: {why}" for s, why in failed[:3])
+                             + ("; ..." if len(failed) > 3 else ""))
+            print(f"dataops: note: {len(left_out)} of {len(services)} services left out: " + " and ".join(parts), file=sys.stderr)
         found = [p for p in layers if matches(p, search)]
         return Listing(found[:limit] if limit else found, len(found))
 

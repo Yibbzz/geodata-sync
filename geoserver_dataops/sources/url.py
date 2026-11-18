@@ -23,6 +23,7 @@ class Probe:
     version: str | None  # ETag or Last-Modified: changes when the file does
     file_name: str
     content_type: str
+    modified: str | None = None  # Last-Modified, as an ISO 8601 time
 
 
 def probe(session: requests.Session, url: str, headers: dict | None = None) -> Probe:
@@ -52,7 +53,17 @@ def probe(session: requests.Session, url: str, headers: dict | None = None) -> P
         version=(r.headers.get("ETag") or "").removeprefix("W/").strip('"') or r.headers.get("Last-Modified"),
         file_name=file_name,
         content_type=r.headers.get("Content-Type", "").split(";")[0].strip().lower(),
+        modified=iso_time(r.headers.get("Last-Modified")),
     )
+
+
+def iso_time(http_date: str | None) -> str | None:
+    """An HTTP date (Tue, 17 Nov 2026 00:21:21 GMT) as 2026-11-17T00:21:21Z, or None."""
+    from email.utils import parsedate_to_datetime
+    try:
+        return parsedate_to_datetime(http_date).strftime("%Y-%m-%dT%H:%M:%SZ") if http_date else None
+    except (TypeError, ValueError):
+        return None
 
 
 def resolve(session: requests.Session, url: str, headers: dict | None = None) -> str:

@@ -32,7 +32,7 @@ def test_the_shapefiles_where_there_are_some_else_the_osm_extract(server):
     test, big = client.product("test"), client.product("big")
     assert (test.chosen.format, test.chosen.file_name) == ("Shapefile", "test-latest-free.shp.zip")
     assert (big.chosen.format, big.chosen.file_name) == ("OSM PBF", "big-latest.osm.pbf")
-    assert test.version == "Thu, 09 Oct 2025 08:53:20 GMT"  # when Geofabrik built it, from one byte
+    assert test.version == "2025-10-09T08:53:20Z"  # when Geofabrik built it, from one byte
     assert len(test.chosen.md5) == 32
     assert client.product("test", "pbf").chosen.format == "OSM PBF"
     assert not server.downloads()  # nothing downloaded to find all that out

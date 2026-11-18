@@ -85,7 +85,8 @@ class Geofabrik:
             p.chosen = p.downloads[0]  # the shapefiles where Geofabrik makes them: tidier layers than raw OSM
         p.loads_as = p.chosen.format
         found = probe(self.session, p.chosen.url)  # when it was built: one byte asked for
-        p.version, p.chosen.size = found.version, found.size
+        # when Geofabrik built the file (shown as its date); the ETag only if the server gives no time
+        p.version, p.chosen.size = found.modified or found.version, found.size
         p.chosen.md5 = self._md5(p.chosen.url)
         return p
 
