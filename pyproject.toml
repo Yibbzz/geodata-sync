@@ -33,5 +33,6 @@ pythonpath = ["."]
 markers = [
     "integration: needs a PostGIS database (TEST_DB_* env vars) and ogr2ogr",
     "e2e: needs a GeoServer and its PostGIS (tests/e2e/up.sh, E2E_* env vars) and GDAL's tools",
+    "live: against the real services, daily (LIVE_SOURCES=1; .github/workflows/sources.yaml)",
 ]
 addopts = "-ra"
