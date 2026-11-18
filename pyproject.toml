@@ -16,6 +16,7 @@ dependencies = ["pyyaml>=6", "jsonschema>=4.18", "requests>=2.28", "psycopg2-bin
 dev = ["pytest", "pyarrow>=14", "shapely>=2", "paramiko>=4"]
 overture = ["pyarrow>=14", "shapely>=2"]  # the overture source reads GeoParquet
 sftp = ["paramiko>=4"]  # files sources on SFTP servers
+google = ["cryptography>=42"]  # files sources on Google Cloud Storage with a service account key
 
 [project.scripts]
 dataops = "geoserver_dataops.cli:main"
