@@ -64,3 +64,20 @@ def test_tables_names_an_arcgis_layer_by_its_name(tmp_path, schemas, env, capsys
         assert tables_in(schemas[0]) == ["rivers"]
     finally:
         server.close()
+
+
+def test_a_private_layer_loads_with_the_token_on_every_page(tmp_path, schemas, env, capsys, monkeypatch):
+    """GDAL pages through the query itself: each page must carry the token, or the server refuses it."""
+    server = ArcGISServer(rivers=2500)
+    try:
+        server.required_token = "good-token"
+        root = project(tmp_path, server.root, schemas)
+        text = (root / "project.yaml").read_text().replace(f'url: "{server.root}" }}', f'url: "{server.root}", credentials: {{ secret: esri }} }}')
+        (root / "project.yaml").write_text(text)
+        monkeypatch.setenv("DATAOPS_ESRI_APIKEY", "good-token")
+        assert sync(root) == 0, capsys.readouterr().err
+        assert "(2,500 rows)" in capsys.readouterr().out
+        pages = [r for r in server.requests if "/query" in r and "resultOffset" in r]
+        assert len(pages) > 1 and all("token=good-token" in r for r in pages)
+    finally:
+        server.close()
