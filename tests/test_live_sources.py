@@ -40,6 +40,8 @@ CASES = {
             "{ product: 6e2b7a2b-4a67-48ad-9829-2d789454250d }", None),
     "atom": ("{ type: atom, url: https://service.pdok.nl/rvo/natura2000/atom/index.xml }", "{ product: natura_2000 }", None),
     "data-europa": ("{ type: data-europa }", "{ product: pdcn_isos_p-canton-geneve }", None),
+    # GeoNode's public demo (most of its datasets' exports are broken there; this one works): a failure may be the demo's
+    "geonode": ("{ type: geonode, url: https://stable.demo.geonode.org }", "{ product: 'geonode:cfp_401_anillos' }", None),
     "socrata": ("{ type: socrata, url: https://data.cityofnewyork.us }", "{ product: 4j29-i5ry }", None),
     "opendatasoft": ("{ type: opendatasoft, url: https://opendata.paris.fr }", "{ product: marches-decouverts }", None),
     "stac-earth-search": ("{ type: stac, url: https://earth-search.aws.element84.com/v1 }",

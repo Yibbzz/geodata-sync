@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -203,12 +204,26 @@ def to_layers(info: list[dict], file: str) -> list[Layer]:
     return layers
 
 
+def service_error(start: bytes) -> str | None:
+    """What an OGC service said, when a "download" is its exception report (a WFS's, WCS's or WMS's) and not data."""
+    if b"ExceptionReport" not in start[:2000] and b"ServiceException" not in start[:2000]:
+        return None
+    text = re.sub(rb"<[^>]+>", b" ", start).decode("utf-8", "replace")
+    detail = " ".join(text.split())
+    detail = re.sub(r"^\?xml[^ ]* ", "", detail)
+    return detail[:300] or "an error"
+
+
 def archive_layers(fileobj, gdal_path: str) -> list[Layer]:
     """
     Layers of every data file in a download. `fileobj` reads the download;
     `gdal_path` is how GDAL reaches the same bytes (a local path, or
     /vsicurl/<url>).
     """
+    start = fileobj.peek(4096)[:4096] if hasattr(fileobj, "peek") else b""
+    said = service_error(start)
+    if said:
+        raise RemoteError(f"the server answered with an error, not data: {said}")
     entries = zip_entries(fileobj)
     if entries is None:
         return to_layers(ogrinfo(gdal_path), "")

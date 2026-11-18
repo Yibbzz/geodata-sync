@@ -19,10 +19,10 @@ from .loader import Problem, Project, Resource, default_table
 from .sources import built_in_types, plugin_types
 
 SOURCES_WITH_PRODUCTS = {"os-downloads", "ckan", "ogc-api-features", "wfs", "arcgis", "stac", "ogc-api-records", "csw",
-                         "socrata", "opendatasoft", "overture", "geofabrik", "koordinates", "atom", "overpass", "files", "database", "data-europa", "usgs"}
+                         "socrata", "opendatasoft", "overture", "geofabrik", "koordinates", "atom", "overpass", "files", "database", "data-europa", "usgs", "geonode"}
 SOURCES_WITH_ADDRESSES = SOURCES_WITH_PRODUCTS - {"os-downloads", "overture", "geofabrik", "overpass", "data-europa", "usgs"}
 SOURCES_WITH_OPTIONAL_ADDRESSES = {"overture", "geofabrik", "overpass", "data-europa", "usgs"}  # a mirror, another Overpass instance
-SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw", "geofabrik", "atom", "data-europa"}  # products with several downloads to pick from  # need the Source's spec.url
+SOURCES_WITH_RESOURCES = {"ckan", "ogc-api-records", "csw", "geofabrik", "atom", "data-europa", "geonode"}  # products with several downloads to pick from  # need the Source's spec.url
 DATABASE_SCHEMES = ("postgresql", "postgres", "postgis", "mysql", "mariadb")
 FILE_SCHEMES = ("file://", "s3://", "gs://", "az://", "sftp://", "ftp://", "ftps://", "/")
 SOURCES_WITH_KEYS = {"os-downloads", "ckan", "socrata", "opendatasoft", "koordinates", "files", "database"}
