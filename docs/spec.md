@@ -309,7 +309,8 @@ Known gaps:
 Some data says how it should look. A GeoPackage saved from QGIS keeps its styles in a `layer_styles` table (each row
 a style for one layer, as SLD and as QGIS's own QML, one of them the layer's default), and a zip can hold an SLD beside
 a data file, named after it (`roads.sld` beside `roads.shp`). An ArcGIS layer describes its own symbology (its
-`drawingInfo`), which dataops converts to SLD (below). `discover` lists them under the layers:
+`drawingInfo`), which dataops converts to SLD (below), and a GeoNode dataset's styles are read from its GeoServer
+(WMS GetStyles: its REST API needs a login), each written as its own SLD. `discover` lists them under the layers:
 
 ```
 LAYER               GEOMETRY  CRS         FEATURES

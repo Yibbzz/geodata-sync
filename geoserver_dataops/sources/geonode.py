@@ -6,11 +6,15 @@ A dataset is loaded from the exports GeoNode lists for it, made by its own GeoSe
 else a zipped Shapefile, GeoJSON or GML; a raster dataset's GeoTIFF becomes a Cloud-Optimised GeoTIFF
 (`raster:`). `resource` picks another export by name. The version is when the dataset was last updated.
 Public datasets only: the original uploaded files need a login.
+
+A dataset's styles are read from GeoNode's GeoServer through WMS GetStyles (its REST API needs a login), each as an
+SLD of its own, the dataset's default marked so (styles.py writes them with `dataops styles`).
 """
 
 from __future__ import annotations
 
 import re
+import xml.etree.ElementTree as ET
 
 import requests
 
@@ -86,3 +90,47 @@ class GeoNode:
 
     def download_url(self, download: Download) -> str:
         return download.url
+
+    def styles(self, product: Product) -> list:
+        """The dataset's styles, from WMS GetStyles on GeoNode's GeoServer: one Style per UserStyle."""
+        from ..styles import Style
+
+        found = [d for d in self._datasets({"filter{alternate}": product.id}, product.id).get("datasets") or [] if isinstance(d, dict)]
+        wms = next((link["url"] for d in found for link in d.get("links") or []
+                    if isinstance(link, dict) and link.get("link_type") == "OGC:WMS" and link.get("url")), f"{self.url}/geoserver/ows")
+        try:
+            r = self.session.get(wms, params={"service": "WMS", "version": "1.1.1", "request": "GetStyles", "layers": product.id},
+                                 timeout=TIMEOUT)
+        except requests.RequestException as e:
+            raise SourceError(f"can't read {product.id}'s styles: {e}") from None
+        if r.status_code != 200:
+            raise SourceError(f"{wms} answered HTTP {r.status_code} for {product.id}'s styles")
+        return [Style(name=title, sld=sld, default=default, origin="GeoNode's style") for title, sld, default in split_styles(r.content)]
+
+
+SLD_NS = "http://www.opengis.net/sld"
+for prefix, uri in (("", SLD_NS), ("ogc", "http://www.opengis.net/ogc"), ("xlink", "http://www.w3.org/1999/xlink"),
+                    ("gml", "http://www.opengis.net/gml"), ("se", "http://www.opengis.net/se")):
+    ET.register_namespace(prefix, uri)
+
+
+def split_styles(document: bytes) -> list[tuple[str, str, bool]]:
+    """(name, SLD, default) for each UserStyle of a GetStyles answer, each made an SLD document of its own."""
+    try:
+        root = ET.fromstring(document)
+    except ET.ParseError:
+        return []
+    out = []
+    for layer in root.iter(f"{{{SLD_NS}}}NamedLayer"):
+        name = layer.findtext(f"{{{SLD_NS}}}Name") or ""
+        for user in layer.findall(f"{{{SLD_NS}}}UserStyle"):
+            doc = ET.Element(f"{{{SLD_NS}}}StyledLayerDescriptor", {"version": root.get("version") or "1.0.0"})
+            named = ET.SubElement(doc, f"{{{SLD_NS}}}NamedLayer")
+            ET.SubElement(named, f"{{{SLD_NS}}}Name").text = name.split(":")[-1]
+            named.append(user)
+            ET.indent(doc, space="  ")
+            sld = '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(doc, encoding="unicode") + "\n"
+            title = user.findtext(f"{{{SLD_NS}}}Name") or user.findtext(f"{{{SLD_NS}}}Title") or name
+            default = (user.findtext(f"{{{SLD_NS}}}IsDefault") or "").strip().lower() in ("1", "true")
+            out.append((title, sld, default))
+    return out
