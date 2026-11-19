@@ -21,6 +21,8 @@ from urllib.parse import urlparse, quote, urlencode
 import requests
 
 from .. import remote
+from ..styles import Style
+from .arcgis_styles import to_sld
 from . import Download, Listing, NotFound, Product, SourceError, http_session, matches
 
 ONLINE_TOKENS = "https://www.arcgis.com/sharing/rest/generateToken"  # ArcGIS Online
@@ -266,12 +268,17 @@ class ArcGIS:
         info = self._layer_info(product)
         count = self._json(f"{product.id}/query", product.id, where="1=1", returnCountOnly="true").get("count")
         geometry = info.get("geometryType")
+        name = table_name(info, product)
+        converted = to_sld(info, name)
+        styles = [Style(name=f"{info.get('name') or name} (ArcGIS symbology)", sld=converted[0], default=True,
+                        origin="the ArcGIS layer's drawing info", files=converted[1], notes=converted[2])] if converted else []
         return [remote.Layer(
-            name=table_name(info, product),
+            name=name,
             file="",
             geometry=GEOMETRY.get(geometry, geometry) if geometry else None,
             crs=epsg((info.get("extent") or {}).get("spatialReference") or info.get("sourceSpatialReference")),
             features=count if isinstance(count, int) else None,
+            styles=styles,
         )]
 
     def gdal_source(self, product: Product) -> tuple[str, str, str]:

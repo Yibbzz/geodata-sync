@@ -180,3 +180,14 @@ def test_file_names():
 def test_sidecars_are_beside_the_file_and_named_after_it():
     entries = ["data/roads.shp", "data/roads.dbf", "data/Roads.SLD", "data/rivers.sld", "styles/roads.sld"]
     assert sidecars(entries, "data/roads.shp", "roads") == ["data/Roads.SLD"]
+
+
+def test_a_styles_pictures_are_written_beside_it(tmp_path):
+    from geoserver_dataops.styles import ICONS, write
+    sld = f'<StyledLayerDescriptor><OnlineResource href="{ICONS}/1.png"/></StyledLayerDescriptor>'
+    style = Style("Events (ArcGIS symbology)", sld, True, "the ArcGIS layer's drawing info", {"1.png": b"png"}, ["a note"])
+    lines, refused = write("events", "events_points", [style], tmp_path, force=False)
+    assert refused == 0
+    assert (tmp_path / "icons" / "events-points" / "1.png").read_bytes() == b"png"
+    assert 'href="icons/events-points/1.png"' in (tmp_path / "events-points.sld").read_text()
+    assert lines[1:] == ["  in the Layer on events_points: style: events-points", "  note: a note"]
