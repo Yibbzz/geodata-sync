@@ -332,7 +332,8 @@ conservation-areas: wrote ../publish/styles/conservation-areas.sld (table conser
   in the Layer on conservation_areas: style: conservation-areas
 ```
 
-The files are read where they are, as `discover` reads layers, so nothing is downloaded whole or loaded. The styles
+Attribute names in the styles are written as the load names the columns (`BoroName` becomes `boroname`), as
+GeoServer matches them exactly. The files are read where they are, as `discover` reads layers, so nothing is downloaded whole or loaded. The styles
 become your files: commit them and edit them as you like. `styles` never replaces a file that differs from the data's
 style (`--force` does), and `sync` never writes them. A style saved only as QML has no SLD to write: open the data in
 QGIS and save the style as SLD. The `layer_styles` table itself is never loaded as data. QGIS writes SLD 1.1: GeoServer ConfigOps

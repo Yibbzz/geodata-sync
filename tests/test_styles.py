@@ -191,3 +191,14 @@ def test_a_styles_pictures_are_written_beside_it(tmp_path):
     assert (tmp_path / "icons" / "events-points" / "1.png").read_bytes() == b"png"
     assert 'href="icons/events-points/1.png"' in (tmp_path / "events-points.sld").read_text()
     assert lines[1:] == ["  in the Layer on events_points: style: events-points", "  note: a note"]
+
+
+def test_attributes_are_named_as_the_load_names_the_columns():
+    from geoserver_dataops.styles import as_columns
+    sld = ("<Filter><ogc:PropertyIsEqualTo><ogc:PropertyName>BoroName</ogc:PropertyName><ogc:Literal>Queens</ogc:Literal>"
+           "</ogc:PropertyIsEqualTo></Filter><Label><se:PropertyName> Road-Class </se:PropertyName></Label>"
+           "<PropertyName>name</PropertyName>")
+    assert as_columns(sld) == (
+        "<Filter><ogc:PropertyIsEqualTo><ogc:PropertyName>boroname</ogc:PropertyName><ogc:Literal>Queens</ogc:Literal>"
+        "</ogc:PropertyIsEqualTo></Filter><Label><se:PropertyName>road_class</se:PropertyName></Label>"
+        "<PropertyName>name</PropertyName>")

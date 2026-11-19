@@ -14,6 +14,8 @@ import base64
 import re
 from xml.sax.saxutils import escape
 
+from ..styles import column
+
 ICONS = "__ICONS__"  # replaced, when the style is written, by the folder its pictures go in (styles.py)
 PT = 4 / 3  # ArcGIS sizes are in points; SLD's in pixels
 
@@ -26,11 +28,6 @@ MARKS = {"esriSMSCircle": "circle", "esriSMSSquare": "square", "esriSMSCross": "
 HATCHES = {"esriSFSHorizontal": "shape://horline", "esriSFSVertical": "shape://vertline",
            "esriSFSForwardDiagonal": "shape://slash", "esriSFSBackwardDiagonal": "shape://backslash",
            "esriSFSCross": "shape://plus", "esriSFSDiagonalCross": "shape://times"}
-
-
-def column(field: str) -> str:
-    """A field's name as the column GDAL writes into PostgreSQL: lower case, a few characters made `_`."""
-    return re.sub(r"[-#' ]", "_", field.lower())
 
 
 def colour(c) -> tuple[str, float] | None:
