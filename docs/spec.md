@@ -7,7 +7,7 @@ Publishing the tables (GeoServer layers, styles, caching) is another tool's job:
 ## Principles
 
 1. **The files hold what you chose, nothing else.** Versions, row counts and load times live in the ingest log in the database, not in the files.
-2. **Load safely.** A new version is staged, checked (row counts, invalid geometries left out) and swapped in at once; the old tables are kept as backups.
+2. **Load safely.** A new version is staged, checked (invalid geometries repaired, row counts) and swapped in at once; the old tables are kept as backups.
 3. **Secrets by reference.** API keys and passwords never appear in the files, only the name of the secret that holds them.
 4. **Shaped like Kubernetes resources** (`apiVersion`, `kind`, `metadata`, `spec`).
 5. **Build on existing tools.** Reading and loading go through GDAL (`ogr2ogr`, `gdal_translate`).
@@ -149,7 +149,7 @@ spec:
 | `stac.bbox` | for `stac` | | The area, in degrees: `[west, south, east, north]`. The items covering it are mosaicked and the result is cropped to it, whatever the rasters' CRS |
 | `stac.asset` | for `stac` | | Which file of each item, by its key (`data`, `visual`, `B04`): `dataops discover <source> <collection>` lists them |
 | `stac.datetime` | no | every time | A day (`2024-06-01`, the whole day), a range of days (`2024-06-01/2024-06-30`), full times (`2024-06-01T10:00:00Z`), or an open end (`2024-06-01/..`). For a collection of repeated scenes (Sentinel-2), give one: every scene in it is mosaicked, the newest on top |
-| `validation.dropInvalidGeometries` | no | `true` | Leave out rows whose geometry PostGIS calls invalid |
+| `validation.dropInvalidGeometries` | no | `true` | Repair geometries PostGIS calls invalid (`ST_MakeValid`, keeping the column's geometry type), and leave out the rows whose geometry can't be repaired. `false` loads every geometry as it came |
 | `validation.minRows` | no | `1` | Fail the update (keep the old table) below this count |
 
 A product is a *version* at the source (OS publishes `2026-10`, for example). `sync` loads a new version only when the source has one, and keeps the last `backups` versions of each table.
@@ -273,8 +273,8 @@ The download `sync` uses is the first of GeoPackage, Shapefile, GML, MapInfo TAB
 ```
 $ dataops sync -C examples/uk-basemap
 boundary-line: not due (monthly)
-conservation-areas: loaded 2026-11-04 in 1s: data_layers.conservation_areas (10 rows)
-  note: 1 invalid geometry left out
+conservation-areas: loaded 2026-11-04 in 1s: data_layers.conservation_areas (11 rows)
+  note: 1 invalid geometry repaired
 flood-zones: not due (monthly)
 os-open-roads: up to date (2026-10)
 ```
@@ -283,7 +283,7 @@ For each dataset it checks:
 
 1. **Is there a new version?** It asks the source for its current version: OS's release, a CKAN package's last change, a link's ETag. If that matches the last load, its tables still exist and `tables` hasn't changed, there's nothing to do. A source with no version is downloaded and compared by checksum. A service (WFS, OGC API) is loaded each time it is due.
 2. **Download and stage:** the file is downloaded (with OS's MD5 checked) and unzipped. Every layer `tables` names (all of them if it names none) is loaded with ogr2ogr into the staging schema. A service is loaded straight from the service. A layer whose file declares no CRS gets the project's `crs`, or the table's own `crs`.
-3. **Check:** invalid geometries are left out (unless `validation.dropInvalidGeometries: false`), and a table with fewer than `validation.minRows` rows stops the load.
+3. **Check:** invalid geometries are repaired with `ST_MakeValid`: a self-crossing polygon becomes the polygons it outlines, still of the column's type (a MultiPolygon stays one). The few that can't be repaired (a polygon that has collapsed to a line) are left out, with a note. `validation.dropInvalidGeometries: false` loads them as they came. Then a table with fewer than `validation.minRows` rows stops the load.
 4. **Swap in:** in one transaction, each live table is renamed into the backup schema and the new one renamed into its place. Nothing is copied, and if any table fails its check, none of the dataset's live tables change. The newest `backups` backups of each table are kept.
 
 `--loaded FILE` writes what was loaded, one per line: `schema.table` for a table, the path under the data folder for a raster. GeoServer still has the old bounding boxes and cached tiles of layers on them; `configops refresh --from FILE` (GeoServer ConfigOps) brings them up to date.
@@ -310,7 +310,7 @@ Known gaps:
 ```
 $ dataops status
 DATASET             UPDATE  LOADED      AT                ROWS  NEXT CHECK        LAST CHECK
-conservation-areas  weekly  2026-11-04  2026-11-10 13:53  10    2026-11-17 12:53  success
+conservation-areas  weekly  2026-11-04  2026-11-10 13:53  11    2026-11-17 12:53  success
 os-open-roads       weekly  never       -                 -     now               failed: can't reach the OS Downloads API: …
 ```
 

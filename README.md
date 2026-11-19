@@ -26,7 +26,7 @@ Anything else: [![Your own: plugin](https://img.shields.io/badge/Your_own-plugin
 `dataops` keeps the open datasets you name in PostGIS, each at its newest version:
 
 - **Find** data in the places it is published, worldwide: the sources above, or anything else as a [plugin](docs/plugins.md), a class in your own package. `discover` lists what a source offers and the layers inside a download.
-- **Load** it safely: staged, checked (invalid geometries, row counts), then swapped in for the old tables in one transaction, which are kept as backups. A raster download becomes one Cloud-Optimised GeoTIFF.
+- **Load** it safely: staged, checked (invalid geometries repaired, row counts), then swapped in for the old tables in one transaction, which are kept as backups. A raster download becomes one Cloud-Optimised GeoTIFF.
 - **Keep it up to date.** Each dataset has a schedule; `sync`, run nightly, checks those that are due and loads only a new version.
 
 It loads the data; [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-configops) configures GeoServer to publish it, and `configops refresh` brings GeoServer up to date after each load.
@@ -78,11 +78,11 @@ database: { host: localhost, port: "5433", database: postgres, username: postgre
 EOF
 
 $ dataops sync -C examples/quickstart
-  conservation-areas: loaded 2026-11-11 in 0s: data_layers.conservation_areas_conservation_areas (10 rows)
-    note: 1 invalid geometry left out
+  conservation-areas: loaded 2026-11-18 in 0s: data_layers.conservation_areas_conservation_areas (11 rows)
+    note: 1 invalid geometry repaired
 $ dataops status -C examples/quickstart
   DATASET             UPDATE   LOADED      AT                ROWS  NEXT CHECK        LAST CHECK
-  conservation-areas  monthly  2026-11-11  2026-11-13 08:51  10    2026-12-13 07:51  success
+  conservation-areas  monthly  2026-11-18  2026-11-18 20:10  11    2026-12-18 19:10  success
 $ dataops sync -C examples/quickstart
   conservation-areas: not due (monthly)
 ```

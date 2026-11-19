@@ -137,11 +137,14 @@ def test_load_skip_force_and_backups(tmp_path, server, schemas, env, capsys):
 
     assert sync(root) == 0
     out = capsys.readouterr().out
-    assert f"{live}.sites_areas (1 rows)" in out and f"{live}.sites_points (3 rows)" in out
-    assert "1 invalid geometry left out" in out
+    assert f"{live}.sites_areas (2 rows)" in out and f"{live}.sites_points (3 rows)" in out
+    assert "1 invalid geometry repaired" in out and "left out" not in out
     assert tables_in(live) == ["sites_areas", "sites_points"]
     assert tables_in(staging) == []
-    assert query(f'SELECT name FROM "{live}".sites_areas') == [("square",)]
+    # the bow tie is now its two triangles, still a valid MultiPolygon
+    assert query(f'SELECT name, ST_IsValid(geom), ST_GeometryType(geom), ST_NumGeometries(geom) '
+                 f'FROM "{live}".sites_areas ORDER BY name') == [
+        ("bowtie", True, "ST_MultiPolygon", 2), ("square", True, "ST_MultiPolygon", 1)]
     assert query(f"SELECT Find_SRID('{live}', 'sites_points', 'geom')") == [(27700,)]
 
     assert sync(root) == 0
@@ -160,10 +163,10 @@ def test_a_failed_check_leaves_live_tables_alone(tmp_path, server, schemas, env,
     assert sync(project(tmp_path, server, schemas)) == 0
     before = query(f'SELECT count(*) FROM "{live}".sites_points')
 
-    root = project(tmp_path, server, schemas, validation="  validation: { minRows: 2 }\n")
+    root = project(tmp_path, server, schemas, validation="  validation: { minRows: 3 }\n")
     assert sync(root, "--force") == 1
     err = capsys.readouterr().err
-    assert "sites_areas would have 1 rows, fewer than minRows (2); the live table is unchanged" in err
+    assert "sites_areas would have 2 rows, fewer than minRows (3); the live table is unchanged" in err
     # neither table changed, though points passed its own check
     assert query(f'SELECT count(*) FROM "{live}".sites_points') == before
     assert tables_in(backup) == []
@@ -175,7 +178,24 @@ def test_keeping_invalid_geometries(tmp_path, server, schemas, env):
     live = schemas[0]
     root = project(tmp_path, server, schemas, validation="  validation: { dropInvalidGeometries: false }\n")
     assert sync(root) == 0
-    assert query(f'SELECT count(*) FROM "{live}".sites_areas') == [(2,)]
+    # left as they came: the bow tie is still invalid
+    assert query(f'SELECT name, ST_IsValid(geom) FROM "{live}".sites_areas ORDER BY name') == [
+        ("bowtie", False), ("square", True)]
+
+
+@pytest.mark.parametrize("column, wkt, expected", [
+    ("MULTIPOLYGON", "MULTIPOLYGON(((0 0,10 10,10 0,0 10,0 0)))", "MULTIPOLYGON(((5 5,0 0,0 10,5 5)),((5 5,10 10,10 0,5 5)))"),
+    ("POLYGON", "POLYGON((0 0,10 10,10 0,0 10,0 0))", None),           # becomes two polygons: no longer fits
+    ("POLYGON", "POLYGON((0 0,10 0,10 10,0 10,0 0),(1 1,2 1,2 2,1 1),(1 1,2 1,2 2,1 1))",   # two holes the same
+     "POLYGON((0 0,0 10,10 10,10 0,0 0),(1 1,2 1,2 2,1 1))"),
+    ("MULTIPOLYGON", "MULTIPOLYGON(((0 0,10 10,0 0,10 10,0 0)))", "MULTIPOLYGON EMPTY"),  # only a line: left out
+    ("MULTILINESTRING", "MULTILINESTRING((0 0,0 0))", "MULTILINESTRING EMPTY"),
+    ("GEOMETRY", "POLYGON((0 0,10 10,10 0,0 10,0 0))", "MULTIPOLYGON(((5 5,0 0,0 10,5 5)),((5 5,10 10,10 0,5 5)))"),
+])
+def test_repairing_keeps_the_column_type(column, wkt, expected):
+    from geoserver_dataops.ingest import repaired
+    got = query(f"SELECT ST_AsText(ST_Normalize({repaired('g', column)})) FROM (SELECT %s::geometry AS g) t", wkt)
+    assert got == [(query("SELECT ST_AsText(ST_Normalize(%s::geometry))", expected)[0][0] if expected else None,)]
 
 
 def test_changed_tables_or_a_missing_table_reload(tmp_path, server, schemas, env, capsys):
