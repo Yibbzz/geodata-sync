@@ -48,3 +48,25 @@ def test_a_source_that_needs_a_key_says_so(tmp_path):
     (tmp_path / "project.yaml").write_text(PROJECT + source("{ type: koordinates, url: 'https://data.linz.govt.nz' }"))
     assert ("error", "spec.credentials: a koordinates source needs an API key: credentials: { secret: <name> }, with key apiKey") \
         in [(p.severity, p.message) for p in validate(load(tmp_path))]
+
+
+def test_an_unquoted_date_is_text(tmp_path):
+    # YAML reads 2025-08-22 as a date; the files mean the text, as if quoted
+    (tmp_path / "project.yaml").write_text(PROJECT + """---
+apiVersion: dataops/v1alpha1
+kind: Source
+metadata: { name: s }
+spec: { type: stac, url: 'https://example.org/stac' }
+---
+apiVersion: dataops/v1alpha1
+kind: Dataset
+metadata: { name: d }
+spec:
+  source: s
+  product: sentinel-2-l2a
+  stac: { bbox: [-74.06, 40.68, -73.90, 40.83], asset: visual, datetime: 2025-08-22 }
+  raster: { path: rasters/s2.tif }
+""")
+    project = load(tmp_path)
+    assert [r for r in project.resources if r.kind == "Dataset"][0].spec["stac"]["datetime"] == "2025-08-22"
+    assert [p.message for p in validate(project) if p.severity == "error"] == []

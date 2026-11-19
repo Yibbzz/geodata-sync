@@ -108,6 +108,14 @@ def find_files(root: Path) -> list[Path]:
     return sorted(files)
 
 
+class _Loader(yaml.SafeLoader):
+    """YAML as the files mean it: `datetime: 2025-08-22` is the text 2025-08-22, as if quoted. No field takes
+    YAML's own date type, and a date unquoted would otherwise fail validation as "not of type 'string'"."""
+
+
+_Loader.add_constructor("tag:yaml.org,2002:timestamp", yaml.SafeLoader.construct_scalar)
+
+
 def load(root: Path) -> Project:
     root = Path(root)
     resources: list[Resource] = []
@@ -116,10 +124,10 @@ def load(root: Path) -> Project:
     for path in files:
         try:
             text = path.read_text(encoding="utf-8")
-            for node in yaml.compose_all(text, Loader=yaml.SafeLoader):
+            for node in yaml.compose_all(text, Loader=_Loader):
                 if node is None:
                     continue
-                data = yaml.SafeLoader(text).construct_document(node)
+                data = _Loader(text).construct_document(node)
                 if data is None:
                     continue
                 resources.append(Resource(data=data, file=path, node=node))
