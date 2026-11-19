@@ -12,6 +12,7 @@ from . import __version__
 from .discover import DiscoverError
 from .discover import run as discover
 from .status import run as status
+from .styles import run as styles
 from .sync import SyncError
 from .sync import run as sync
 from .loader import load
@@ -82,6 +83,14 @@ def cmd_sync(args) -> int:
         return e.code
 
 
+def cmd_styles(args) -> int:
+    try:
+        return styles(Path(args.dir), args.datasets, Path(args.to), force=args.force)
+    except SyncError as e:
+        print(f"dataops styles: {e}", file=sys.stderr)
+        return e.code
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="dataops", description="GeoServer DataOps: the data GeoServer publishes, loaded into PostGIS and kept up to date, from YAML files.")
     parser.add_argument("--version", action="version", version=f"dataops {__version__}")
@@ -129,6 +138,18 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--loaded", type=Path, metavar="FILE",
                    help="write what was loaded to FILE, one per line (schema.table, or a raster's path), for `configops refresh --from FILE`")
     s.set_defaults(func=cmd_sync)
+
+    sy = commands.add_parser(
+        "styles", help="write the styles that come with the data as SLD files",
+        description="Write the styles each Dataset's data comes with (a GeoPackage's layer_styles, an SLD beside "
+        "the data) as SLD files in a folder, named after the tables: for GeoServer ConfigOps to publish. "
+        "Reads the files where they are, like discover; loads nothing.",
+    )
+    sy.add_argument("datasets", nargs="*", help="only these Datasets (default: all)")
+    sy.add_argument("--to", required=True, metavar="FOLDER", help="where to write them, e.g. ../publish/styles")
+    sy.add_argument("-C", "--dir", default=".", help="project directory (default: current)")
+    sy.add_argument("--force", action="store_true", help="replace a file that differs (your own edits are lost)")
+    sy.set_defaults(func=cmd_styles)
 
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["discover"]:

@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -81,13 +81,17 @@ class Layer:
     geometry: str | None  # e.g. "LineString"; None for a table without geometry
     crs: str | None  # e.g. "EPSG:27700"
     features: int | None  # None when counting would mean reading the whole file
+    styles: list = field(default_factory=list)  # styles.Style: those that come with the data (styles.py)
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "file": self.file, "geometry": self.geometry, "crs": self.crs, "features": self.features}
+        return {"name": self.name, "file": self.file, "geometry": self.geometry, "crs": self.crs, "features": self.features,
+                "styles": [s.to_dict() for s in self.styles]}
 
     @classmethod
     def from_dict(cls, d: dict) -> "Layer":
-        return cls(d["name"], d.get("file", ""), d.get("geometry"), d.get("crs"), d.get("features"))
+        from .styles import Style
+        return cls(d["name"], d.get("file", ""), d.get("geometry"), d.get("crs"), d.get("features"),
+                   [Style.from_dict(s) for s in d.get("styles") or []])
 
 
 class HttpFile(io.RawIOBase):
@@ -227,15 +231,23 @@ def archive_layers(fileobj, gdal_path: str) -> list[Layer]:
     said = service_error(start)
     if said:
         raise RemoteError(f"the server answered with an error, not data: {said}")
+    from .styles import attach
+
     entries = zip_entries(fileobj)
     if entries is None:
-        return to_layers(ogrinfo(gdal_path), "")
+        return attach(to_layers(ogrinfo(gdal_path), ""), gdal_path)
     files = data_files(entries)
     if not files:
         raise RemoteError("the download holds no data files GDAL can read")
+
+    def read(entry: str) -> bytes:
+        with zipfile.ZipFile(fileobj) as z:
+            return z.read(entry)
+
     layers = []
     for f in files:
-        layers += to_layers(ogrinfo(f"/vsizip/{{{gdal_path}}}/{f}"), f)
+        path = f"/vsizip/{{{gdal_path}}}/{f}"
+        layers += attach(to_layers(ogrinfo(path), f), path, entries, read, f)
     return layers
 
 

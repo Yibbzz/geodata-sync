@@ -116,18 +116,23 @@ def up_to_date(conn, db: ingest.Database, dataset: Resource, last: ingest.LastLo
     return ingest.tables_exist(conn, db.live, last.tables)
 
 
+def product_for(src, dataset: Resource) -> Product:
+    """The Dataset's product at its source, with the download sync uses."""
+    spec = dataset.spec
+    if hasattr(src.client, "selection"):  # a STAC collection's or an Overture type's part: options under the type's name
+        return src.client.selection(spec["product"], spec.get(src.type) or spec.get("options") or {})
+    if spec.get("raster") and src.type == "os-downloads":
+        return src.client.product(spec["product"], spec.get("resource"), raster=True)
+    return src.client.product(spec["url"] if src.type == "url" else spec["product"], spec.get("resource"))
+
+
 def sync_dataset(conn, db: ingest.Database, root: Path, project: Resource, dataset: Resource, force: bool) -> tuple[str, list[str]]:
     """Check one dataset and load it if needed; returns a line for the user, and the tables loaded (none if up to date)."""
     started = datetime.now()
     spec = dataset.spec
     src = discover.resolve(spec["source"], root)
     raster_spec = spec.get("raster")
-    if hasattr(src.client, "selection"):  # a STAC collection's or an Overture type's part: options under the type's name
-        product: Product = src.client.selection(spec["product"], spec.get(src.type) or spec.get("options") or {})
-    elif raster_spec and src.type == "os-downloads":
-        product: Product = src.client.product(spec["product"], spec.get("resource"), raster=True)
-    else:
-        product = src.client.product(spec["url"] if src.type == "url" else spec["product"], spec.get("resource"))
+    product = product_for(src, dataset)
     chosen = product.chosen
     if chosen is None:
         raise ingest.LoadError(f"{product.id} has nothing dataops can load; `dataops discover` shows what it offers")
