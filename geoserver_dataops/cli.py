@@ -27,7 +27,7 @@ def shown(path: Path) -> str:
 
 
 def cmd_validate(args) -> int:
-    root = Path(args.dir)
+    root = Path(args.dir or args.path or ".")
     if not root.is_dir():
         print(f"dataops: {root} is not a directory", file=sys.stderr)
         return 2
@@ -88,7 +88,9 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", metavar="command")
 
     v = commands.add_parser("validate", help="check the files against the spec (no network)")
-    v.add_argument("dir", nargs="?", default=".", help="project directory (default: current)")
+    # -C as in every other command; the directory alone (`dataops validate data`) works too
+    v.add_argument("path", nargs="?", metavar="dir", help=argparse.SUPPRESS)
+    v.add_argument("-C", "--dir", help="project directory (default: current)")
     v.add_argument("--format", choices=["text", "json"], default="text")
     v.set_defaults(func=cmd_validate)
 

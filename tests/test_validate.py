@@ -50,6 +50,14 @@ def test_a_source_that_needs_a_key_says_so(tmp_path):
         in [(p.severity, p.message) for p in validate(load(tmp_path))]
 
 
+def test_validate_takes_the_directory_with_c_or_alone(tmp_path, capsys):
+    from geoserver_dataops.cli import main
+    (tmp_path / "project.yaml").write_text(PROJECT + source("{ type: ckan, url: 'https://data.example.org' }"))
+    for args in (["validate", "-C", str(tmp_path)], ["validate", "--dir", str(tmp_path)], ["validate", str(tmp_path)]):
+        assert main(args) == 0, args
+        assert "Valid: 3 resources in 1 files" in capsys.readouterr().out
+
+
 def test_an_unquoted_date_is_text(tmp_path):
     # YAML reads 2025-08-22 as a date; the files mean the text, as if quoted
     (tmp_path / "project.yaml").write_text(PROJECT + """---
