@@ -180,3 +180,14 @@ def test_file_names():
 def test_sidecars_are_beside_the_file_and_named_after_it():
     entries = ["data/roads.shp", "data/roads.dbf", "data/Roads.SLD", "data/rivers.sld", "styles/roads.sld"]
     assert sidecars(entries, "data/roads.shp", "roads") == ["data/Roads.SLD"]
+
+
+def test_attributes_are_named_as_the_load_names_the_columns():
+    from geoserver_dataops.styles import as_columns
+    sld = ("<Filter><ogc:PropertyIsEqualTo><ogc:PropertyName>BoroName</ogc:PropertyName><ogc:Literal>Queens</ogc:Literal>"
+           "</ogc:PropertyIsEqualTo></Filter><Label><se:PropertyName> Road-Class </se:PropertyName></Label>"
+           "<PropertyName>name</PropertyName>")
+    assert as_columns(sld) == (
+        "<Filter><ogc:PropertyIsEqualTo><ogc:PropertyName>boroname</ogc:PropertyName><ogc:Literal>Queens</ogc:Literal>"
+        "</ogc:PropertyIsEqualTo></Filter><Label><se:PropertyName>road_class</se:PropertyName></Label>"
+        "<PropertyName>name</PropertyName>")

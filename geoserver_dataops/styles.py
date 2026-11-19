@@ -121,6 +121,18 @@ def attach(layers, gdal_path: str, entries: list[str] | None = None, read=None, 
 # --- writing them out
 
 
+def column(field: str) -> str:
+    """A field's name as the column GDAL writes into PostgreSQL: lower case, a few characters made `_`."""
+    return re.sub(r"[-#' ]", "_", field.lower())
+
+
+def as_columns(sld: str) -> str:
+    """The SLD with every attribute it names written as the load names the column: a style made for the data where it
+    was published names `BoroName`, which PostGIS has as `boroname`, and GeoServer matches names exactly."""
+    return re.sub(r"(<(?:\w+:)?PropertyName>)\s*([^<]*?)\s*(</(?:\w+:)?PropertyName>)",
+                  lambda m: m.group(1) + column(m.group(2)) + m.group(3), sld)
+
+
 def slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-") or "style"
 
@@ -151,7 +163,8 @@ def write(dataset: str, table: str, styles: list[Style], to: Path, force: bool) 
                          "open the data in QGIS and save the style as SLD")
     for style, file_name in file_names(table, styles):
         path = to / file_name
-        text = style.sld if style.sld.endswith("\n") else style.sld + "\n"
+        text = as_columns(style.sld)
+        text = text if text.endswith("\n") else text + "\n"
         what = f"(table {table}: \"{style.name}\", from {style.origin})"
         if path.exists():
             if path.read_text(encoding="utf-8", errors="replace") == text:
