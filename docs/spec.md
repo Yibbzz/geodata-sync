@@ -308,7 +308,8 @@ Known gaps:
 
 Some data says how it should look. A GeoPackage saved from QGIS keeps its styles in a `layer_styles` table (each row
 a style for one layer, as SLD and as QGIS's own QML, one of them the layer's default), and a zip can hold an SLD beside
-a data file, named after it (`roads.sld` beside `roads.shp`). `discover` lists them under the layers:
+a data file, named after it (`roads.sld` beside `roads.shp`). An ArcGIS layer describes its own symbology (its
+`drawingInfo`), which dataops converts to SLD (below). `discover` lists them under the layers:
 
 ```
 LAYER               GEOMETRY  CRS         FEATURES
@@ -337,6 +338,24 @@ become your files: commit them and edit them as you like. `styles` never replace
 style (`--force` does), and `sync` never writes them. A style saved only as QML has no SLD to write: open the data in
 QGIS and save the style as SLD. The `layer_styles` table itself is never loaded as data. QGIS writes SLD 1.1: GeoServer ConfigOps
 sends it to GeoServer as SLD 1.1 since geoserver-configops#95 (before, as SLD 1.0, which GeoServer draws grey).
+
+### An ArcGIS layer's symbology
+
+An `arcgis` layer's renderer becomes an SLD 1.0 style for the table it loads into: `simple` (one symbol),
+`uniqueValue` (a rule per value of one to three fields, and the default symbol for the rest) and `classBreaks` (a rule
+per range). Fills (solid and hatched), lines (dashed, dotted), markers (circle, square, cross, x, triangle, diamond) and
+picture markers and fills, whose pictures are written beside the style (`icons/<style>/<n>.png`, which GeoServer ConfigOps
+uploads with it); the layer's scale range and transparency; labels whose text is one field (`[NAME]`, `$feature.NAME`).
+Field names are written as PostgreSQL has them after the load (lower case). What isn't converted is drawn plainly and
+listed under the written file as a note: other renderers (heat maps, dot density), visual variables (colour or size by a
+value), Arcade expressions, labels built from several fields, CIM symbols.
+
+```
+$ dataops styles wildfire --to ../publish/styles
+wildfire: wrote ../publish/styles/wildfire-wildfire-response-points.sld (table wildfire_wildfire_response_points: "Wildfire Response Points (ArcGIS symbology)", from the ArcGIS layer's drawing info)
+  in the Layer on wildfire_wildfire_response_points: style: wildfire-wildfire-response-points
+  note: visual variables (colour or size by a value) aren't converted: the base symbols are used
+```
 
 ## `status`
 

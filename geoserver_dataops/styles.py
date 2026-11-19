@@ -14,11 +14,12 @@ nightly `sync` never writes them, so they can be edited like any other style.
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 STYLE_TABLE = "layer_styles"  # QGIS's table of styles in a GeoPackage (and in PostGIS)
@@ -26,6 +27,8 @@ MAX_SLD = 5_000_000  # bytes: larger than any real style; a file this big beside
 
 # Source types whose data never comes with a style: services and APIs that give rows or pixels, not files a
 # person saved. `styles` says so instead of reading them.
+ICONS = "__ICONS__"  # in an SLD: the folder its pictures are written to
+
 NO_STYLES = {"overture", "overpass", "socrata", "opendatasoft", "stac", "usgs", "wfs", "ogc-api-features", "database"}
 
 
@@ -35,13 +38,18 @@ class Style:
     sld: str | None  # the SLD; None when the file has only QGIS's own format (QML)
     default: bool  # the layer's default style
     origin: str  # where it was found, for the user: "the GeoPackage's layer_styles", "roads.sld beside the data"
+    # pictures the SLD points to as `__ICONS__/<name>` (an ArcGIS layer's picture markers): written beside it
+    files: dict = field(default_factory=dict)
+    notes: list = field(default_factory=list)  # what couldn't be carried over (a converted style's)
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "sld": self.sld, "default": self.default, "origin": self.origin}
+        return {"name": self.name, "sld": self.sld, "default": self.default, "origin": self.origin,
+                "files": {k: base64.b64encode(v).decode() for k, v in self.files.items()}, "notes": self.notes}
 
     @classmethod
     def from_dict(cls, d: dict) -> "Style":
-        return cls(d.get("name", ""), d.get("sld"), bool(d.get("default")), d.get("origin", ""))
+        return cls(d.get("name", ""), d.get("sld"), bool(d.get("default")), d.get("origin", ""),
+                   {k: base64.b64decode(v) for k, v in (d.get("files") or {}).items()}, list(d.get("notes") or []))
 
 
 def is_style_table(name: str) -> bool:
@@ -163,9 +171,15 @@ def write(dataset: str, table: str, styles: list[Style], to: Path, force: bool) 
                          "open the data in QGIS and save the style as SLD")
     for style, file_name in file_names(table, styles):
         path = to / file_name
-        text = as_columns(style.sld)
+        icons = f"icons/{path.stem}"  # its pictures, at a path relative to the styles folder, as GeoServer ConfigOps wants
+        text = as_columns(style.sld.replace(ICONS, icons))
         text = text if text.endswith("\n") else text + "\n"
         what = f"(table {table}: \"{style.name}\", from {style.origin})"
+        for name, data in style.files.items():
+            picture = to / icons / name
+            if not picture.exists() or picture.read_bytes() != data or force:
+                picture.parent.mkdir(parents=True, exist_ok=True)
+                picture.write_bytes(data)
         if path.exists():
             if path.read_text(encoding="utf-8", errors="replace") == text:
                 lines.append(f"{dataset}: {path} is up to date {what}")
@@ -181,6 +195,7 @@ def write(dataset: str, table: str, styles: list[Style], to: Path, force: bool) 
             lines.append(f"  in the Layer on {table}: style: {path.stem}")
         else:
             lines.append(f"  in the Layer on {table}: styles: [{path.stem}]")
+        lines += [f"  note: {n}" for n in style.notes]
     return lines, refused
 
 
@@ -219,9 +234,6 @@ def run(root: Path, names: list[str], to: Path, force: bool = False) -> int:
             product = product_for(src, dataset)
             if product.chosen is None:
                 raise LoadError(f"{product.id} has nothing dataops can load")
-            if product.chosen.service and not hasattr(src.client, "styles"):
-                print(f"{dataset.name}: {product.chosen.format} services give no styles")
-                continue
             layers = discover.product_layers(src, product)
             by_name = {layer.name: layer for layer in layers}
             loaded = plan_layers(dataset, [(layer.file, layer.name, layer.crs) for layer in layers], project_crs)

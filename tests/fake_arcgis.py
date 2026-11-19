@@ -62,7 +62,11 @@ class ArcGISServer:
             return {**common, **info}
         if i == 1:
             return {**common, "id": 1, "name": "Lakes", "type": "Feature Layer", "geometryType": "esriGeometryPolygon",
-                    "extent": {"spatialReference": {"wkid": 102100, "latestWkid": 3857}}}
+                    "extent": {"spatialReference": {"wkid": 102100, "latestWkid": 3857}},
+                    "drawingInfo": {"renderer": {"type": "simple", "symbol": {
+                        "type": "esriSFS", "style": "esriSFSSolid", "color": [0, 92, 230, 255],
+                        "outline": {"type": "esriSLS", "style": "esriSLSSolid", "color": [0, 0, 0, 255], "width": 0.75}}},
+                        "transparency": 0}}
         if i == 3:
             return {**common, "id": 3, "name": "Gauges", "type": "Table"}
         return {"id": 2, "name": "Water", "type": "Group Layer", "subLayerIds": [0, 1]}

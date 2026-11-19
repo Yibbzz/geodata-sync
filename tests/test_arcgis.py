@@ -123,3 +123,12 @@ def test_arcgis_onlines_token_address_is_its_own():
     assert ArcGIS(url="https://services3.arcgis.com/abc/arcgis/rest/services").token_url() == ONLINE_TOKENS
     assert ArcGIS(url="https://gis.example.org/server/rest/services", options={"tokenUrl": "https://gis.example.org/portal/sharing/rest/generateToken"}
                   ).token_url() == "https://gis.example.org/portal/sharing/rest/generateToken"
+
+
+def test_a_layers_own_symbology_comes_with_it(server):
+    client = ArcGIS(url=server.root)
+    rivers, lakes = (client.layers(client.product(f"Hydro/Water/FeatureServer/{i}"))[0] for i in (0, 1))
+    assert rivers.styles == []  # no drawing info
+    (style,) = lakes.styles
+    assert (style.name, style.default, style.origin) == ("Lakes (ArcGIS symbology)", True, "the ArcGIS layer's drawing info")
+    assert '<CssParameter name="fill">#005ce6</CssParameter>' in style.sld

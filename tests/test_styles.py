@@ -182,6 +182,17 @@ def test_sidecars_are_beside_the_file_and_named_after_it():
     assert sidecars(entries, "data/roads.shp", "roads") == ["data/Roads.SLD"]
 
 
+def test_a_styles_pictures_are_written_beside_it(tmp_path):
+    from geoserver_dataops.styles import ICONS, write
+    sld = f'<StyledLayerDescriptor><OnlineResource href="{ICONS}/1.png"/></StyledLayerDescriptor>'
+    style = Style("Events (ArcGIS symbology)", sld, True, "the ArcGIS layer's drawing info", {"1.png": b"png"}, ["a note"])
+    lines, refused = write("events", "events_points", [style], tmp_path, force=False)
+    assert refused == 0
+    assert (tmp_path / "icons" / "events-points" / "1.png").read_bytes() == b"png"
+    assert 'href="icons/events-points/1.png"' in (tmp_path / "events-points.sld").read_text()
+    assert lines[1:] == ["  in the Layer on events_points: style: events-points", "  note: a note"]
+
+
 def test_attributes_are_named_as_the_load_names_the_columns():
     from geoserver_dataops.styles import as_columns
     sld = ("<Filter><ogc:PropertyIsEqualTo><ogc:PropertyName>BoroName</ogc:PropertyName><ogc:Literal>Queens</ogc:Literal>"
