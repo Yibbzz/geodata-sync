@@ -161,6 +161,12 @@ def product_layers(src: ResolvedSource, product: Product, use_cache: bool = True
             layers = remote.url_layers(address, session=getattr(src.client, "session", None), file_name=d.file_name)
     if len(layers) == 1 and is_pattern(product.id):  # named as sync names it: after the pattern, not this delivery
         layers[0].name = pattern_stem(product.id)
+    if hasattr(src.client, "styles") and layers:  # a source that keeps a dataset's styles apart from its file (GeoNode)
+        styles = src.client.styles(product)
+        local = product.id.split(":")[-1].lower()
+        target = layers[0] if len(layers) == 1 else next((x for x in layers if x.name.lower() == local), None)
+        if target is not None and styles:
+            target.styles = [*target.styles, *styles]
     save_layers(path, layers)
     return layers
 

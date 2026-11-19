@@ -28,7 +28,7 @@ Anything else: [![Your own: plugin](https://img.shields.io/badge/Your_own-plugin
 - **Find** data in the places it is published, worldwide: the sources above, or anything else as a [plugin](docs/plugins.md), a class in your own package. `discover` lists what a source offers and the layers inside a download.
 - **Load** it safely: staged, checked (invalid geometries repaired, row counts), then swapped in for the old tables in one transaction, which are kept as backups. A raster download becomes one Cloud-Optimised GeoTIFF.
 - **Keep it up to date.** Each dataset has a schedule; `sync`, run nightly, checks those that are due and loads only a new version.
-- **Keep its styling.** A GeoPackage saved from QGIS, an SLD beside a shapefile, or an ArcGIS layer's own symbology says how the data should look: `dataops styles` writes those styles as SLD files for GeoServer ConfigOps to publish.
+- **Keep its styling.** A GeoPackage saved from QGIS, an SLD beside a shapefile, an ArcGIS layer's own symbology or a GeoNode dataset's styles say how the data should look: `dataops styles` writes those styles as SLD files for GeoServer ConfigOps to publish.
 
 It loads the data; [GeoServer ConfigOps](https://github.com/Yibbzz/geoserver-configops) configures GeoServer to publish it, and `configops refresh` brings GeoServer up to date after each load.
 
