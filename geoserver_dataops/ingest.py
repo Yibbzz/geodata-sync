@@ -100,6 +100,7 @@ class Staged:
     staging: str
     rows: int = 0
     dropped: int = 0
+    repaired: int = 0
     note: str = ""
 
 
@@ -360,14 +361,44 @@ def geometry_column(conn, schema: str, table: str) -> str | None:
     return row[0] if row else None
 
 
+PARTS = {"POINT": 1, "LINESTRING": 2, "POLYGON": 3}
+
+
+def repaired(geom: str, column_type: str) -> str:
+    """SQL for an invalid geometry made valid and still of the column's type, or NULL when it can't be.
+    ST_MakeValid can give a collection (a bow-tie polygon becomes two triangles, perhaps with a line
+    where they touch): the parts of the column's kind are kept, and made multi if the column is."""
+    made = f'ST_MakeValid("{geom}")'
+    kind = column_type.upper().removesuffix("M")       # MULTIPOLYGONM: a measured MULTIPOLYGON
+    multi = kind.startswith("MULTI")
+    n = PARTS.get(kind.removeprefix("MULTI"))
+    if n is None:                                      # GEOMETRY, GEOMETRYCOLLECTION: anything valid will do
+        return made
+    parts = f"ST_CollectionExtract({made}, {n})"
+    if multi:
+        return f"ST_Multi({parts})"
+    return f"CASE WHEN ST_NumGeometries({parts}) = 1 THEN ST_GeometryN({parts}, 1) END"
+
+
 def check(conn, db: Database, staged: Staged, drop_invalid: bool, min_rows: int) -> None:
-    """Drop invalid geometries if asked, count rows, and refuse a table below `min_rows`."""
+    """Repair invalid geometries (leaving out any that can't be) if asked, count rows, and refuse a table below
+    `min_rows`."""
     name = f'"{db.staging}"."{staged.staging}"'
     with conn.cursor() as cur:
         geom = geometry_column(conn, db.staging, staged.staging)
         if drop_invalid and geom:
-            cur.execute(f'DELETE FROM {name} WHERE NOT ST_IsValid("{geom}")')
-            staged.dropped = cur.rowcount
+            cur.execute("SELECT type FROM geometry_columns WHERE f_table_schema = %s AND f_table_name = %s AND f_geometry_column = %s",
+                        (db.staging, staged.staging, geom))
+            fix = repaired(geom, cur.fetchone()[0])
+            # rows whose geometry was invalid: repaired in place, and those still no good afterwards left out
+            cur.execute(f'UPDATE {name} SET "{geom}" = {fix} WHERE NOT ST_IsValid("{geom}") '
+                        f'RETURNING ctid, "{geom}" IS NULL OR ST_IsEmpty("{geom}") OR NOT ST_IsValid("{geom}")')
+            touched = cur.fetchall()
+            lost = [ctid for ctid, bad in touched if bad]
+            if lost:
+                cur.execute(f"DELETE FROM {name} WHERE ctid = ANY(%s::tid[])", (lost,))
+            staged.dropped = len(lost)
+            staged.repaired = len(touched) - len(lost)
         cur.execute(f"SELECT count(*) FROM {name}")
         staged.rows = cur.fetchone()[0]
     conn.commit()
