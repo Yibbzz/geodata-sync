@@ -205,6 +205,7 @@ Only tables a Dataset declares, in the Project's schemas, are created, replaced 
 | `dataops discover <source> [product]` | Lists products a source offers, or the layers inside one product |
 | `dataops sync [dataset]` | Checks sources for new versions and loads them (stage, validate, back up, swap in). The nightly job |
 | `dataops status` | Per dataset: version loaded, when, rows, last error, next check |
+| `dataops styles [dataset] --to <folder>` | Writes the styles that come with the data as SLD files, for GeoServer ConfigOps |
 
 ### `discover`
 
@@ -302,6 +303,39 @@ Known gaps:
 - Some WFS servers can't serve features in pages, and fail. The BGS geology service is one: it serves complex (GeoSciML) features and asks for a sort order.
 - WFS and OGC API Features suit small and medium layers. A large one is fetched page by page, each page slower than the last on servers that skip ahead by offset, and one failed page fails the load. The EA's flood zones (415k features) took hours over its OGC API and kept failing; its 1 GB file download loads in minutes. Use the file when there is one.
 - Private CKAN files, which need the API token on the file's own server, can't be downloaded yet.
+
+## `styles`
+
+Some data says how it should look. A GeoPackage saved from QGIS keeps its styles in a `layer_styles` table (each row
+a style for one layer, as SLD and as QGIS's own QML, one of them the layer's default), and a zip can hold an SLD beside
+a data file, named after it (`roads.sld` beside `roads.shp`). `discover` lists them under the layers:
+
+```
+LAYER               GEOMETRY  CRS         FEATURES
+conservation_areas  Polygon   EPSG:27700  11
+
+STYLES IN THE DATA
+LAYER               STYLE                              FORMAT  FROM
+conservation_areas  "Conservation areas" (default)     SLD     the GeoPackage's layer_styles
+conservation_areas  "By designation"                   SLD     the GeoPackage's layer_styles
+```
+
+`dataops styles --to <folder>` writes each Dataset's styles as SLD files, named after the tables the layers load into:
+the default style after the table (`conservation-areas.sld`), others after the table and their own name
+(`conservation-areas-by-designation.sld`). Point it at a GeoServer ConfigOps project's `styles/` folder and name the
+style in the Layer; it says what to write:
+
+```
+$ dataops styles conservation-areas --to ../publish/styles
+conservation-areas: wrote ../publish/styles/conservation-areas.sld (table conservation_areas: "Conservation areas", from the GeoPackage's layer_styles)
+  in the Layer on conservation_areas: style: conservation-areas
+```
+
+The files are read where they are, as `discover` reads layers, so nothing is downloaded whole or loaded. The styles
+become your files: commit them and edit them as you like. `styles` never replaces a file that differs from the data's
+style (`--force` does), and `sync` never writes them. A style saved only as QML has no SLD to write: open the data in
+QGIS and save the style as SLD. The `layer_styles` table itself is never loaded as data. QGIS writes SLD 1.1: GeoServer ConfigOps
+sends it to GeoServer as SLD 1.1 since geoserver-configops#95 (before, as SLD 1.0, which GeoServer draws grey).
 
 ## `status`
 

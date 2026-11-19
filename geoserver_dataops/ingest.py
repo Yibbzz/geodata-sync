@@ -25,6 +25,7 @@ import psycopg2
 import psycopg2.errors
 import requests
 
+from .styles import is_style_table
 from . import remote, spreadsheet
 
 LOG_TABLE = "public.os_ingest_log"  # the name the first ingest pipeline gave it; kept so history carries on
@@ -302,7 +303,8 @@ def file_layers(path: Path, work: Path) -> list[tuple[str, str, str | None]]:
     found = []
     for f in files:
         for layer in remote.to_layers(remote.ogrinfo(f), f):
-            found.append((f, layer.name, layer.crs))
+            if not is_style_table(layer.name):  # QGIS's styles beside the data: not a layer (styles.py)
+                found.append((f, layer.name, layer.crs))
     return found
 
 

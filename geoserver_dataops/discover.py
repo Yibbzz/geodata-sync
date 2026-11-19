@@ -106,7 +106,8 @@ def cache_path(source_type: str, product: Product) -> Path | None:
     d = product.chosen
     if not product.version or d is None:
         return None
-    key = json.dumps([source_type, product.id, product.version, d.id, d.url if d.id else "", d.format, d.subformat, d.area, d.file_name, d.md5])
+    # "styles": layers have carried their styles since dataops 0.5; older entries, without them, aren't used
+    key = json.dumps(["styles", source_type, product.id, product.version, d.id, d.url if d.id else "", d.format, d.subformat, d.area, d.file_name, d.md5])
     return cache_dir() / f"{hashlib.sha256(key.encode()).hexdigest()[:32]}.json"
 
 
@@ -298,7 +299,17 @@ def print_layers(layers: list[remote.Layer] | None, footer: str = "") -> None:
     files = sorted({layer.file for layer in layers if layer.file})
     if len(files) > 1:
         print(f"\nfrom {len(files)} files: {', '.join(files)}")
+    styled = [(layer, s) for layer in layers for s in layer.styles]
+    if styled:
+        print("\nSTYLES IN THE DATA")
+        rows = [["LAYER", "STYLE", "FORMAT", "FROM"]]
+        for layer, s in styled:
+            rows.append([layer.name, f'"{short(s.name, 40)}"' + (" (default)" if s.default else ""),
+                         "SLD" if s.sld else "QML only", s.origin])
+        print(table(rows))
     print("\n" + (footer or "A Dataset loads every layer unless `tables` names some; each becomes table <dataset>_<layer>."))
+    if styled:
+        print("`dataops styles <dataset> --to <folder>` writes a Dataset's styles as SLD files, for GeoServer ConfigOps.")
 
 
 def run(
